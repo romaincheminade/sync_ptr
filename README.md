@@ -4,7 +4,8 @@
     
     Requires C++11 or higher.
     
-    When the original sync_ptr or one of its copy underlying raw pointer changes, all sync_ptr and copies point to the updated raw pointer.
+    When the original sync_ptr or one of its copy underlying raw pointer changes,
+    all sync_ptr and copies point to the updated raw pointer.
     
     Call assignment operator or copy constructor to link objects to the same underlying raw pointer.
        
