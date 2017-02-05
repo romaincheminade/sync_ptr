@@ -8,19 +8,19 @@
 
 namespace eve
 {
-	namespace mem
-	{
+    namespace mem
+    {
 
-		/** 
-		* \brief Default allocator used by smart pointer(s).
-		* Calls "new" on template type.
-		*/
-		template<
+        /** 
+        * \brief Default allocator used by smart pointer(s).
+        * Calls "new" on template type.
+        */
+        template<
             class TType>
-		struct default_allocator
-		{
-			constexpr default_allocator(
-				void)
+        struct default_allocator
+        {
+            constexpr default_allocator(
+                void)
                 noexcept = default;
 
             template<
@@ -30,31 +30,31 @@ namespace eve
                 noexcept
             {}
 
-			template<class ...TArg>
-			TType * operator()(
-				TArg && ...p_args)
-				const
-			{
-				static_assert(
+            template<class ...TArg>
+            TType * operator()(
+                TArg && ...p_args)
+                const
+            {
+                static_assert(
                     0 < sizeof(TType),
-					"can't allocate an incomplete type");
-				return new TType(std::forward<TArg>(p_args)...);
-			}
+                    "can't allocate an incomplete type");
+                return new TType(std::forward<TArg>(p_args)...);
+            }
 
-		}; // struct default_allocator
+        }; // struct default_allocator
 
 
-		/**
-		* \brief Default deleter used by smart pointer(s).
-		* Calls "delete" on target template type pointer.
-		*/
-		template<
+        /**
+        * \brief Default deleter used by smart pointer(s).
+        * Calls "delete" on target template type pointer.
+        */
+        template<
             class TType>
-		struct default_deleter
-		{	
-			constexpr default_deleter(
-				void) 
-				noexcept = default;
+        struct default_deleter
+        {	
+            constexpr default_deleter(
+                void) 
+                noexcept = default;
 
             template<
                 class TType2,
@@ -63,19 +63,19 @@ namespace eve
                 noexcept
             {}
 
-			void operator()(
-				TType * p_ptr) 
-				const noexcept
-			{	
-				static_assert(
+            void operator()(
+                TType * p_ptr) 
+                const noexcept
+            {	
+                static_assert(
                     0 < sizeof(TType),
-					"can't delete an incomplete type");
-				delete p_ptr;
-			}
+                    "can't delete an incomplete type");
+                delete p_ptr;
+            }
 
-		}; // struct default_deleter
+        }; // struct default_deleter
 
-	} // namespace mem
+    } // namespace mem
 
 } // namespace eve
 
