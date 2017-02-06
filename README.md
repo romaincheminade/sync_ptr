@@ -47,7 +47,7 @@ eve::mem::sync_ptr<Foo> ptr2(ptr1);
 Foo * foo = new Foo();
 ptr1.reset(foo); // ptr1 and ptr2 point to foo. 
 
-// Rlease underlying raw pointer.
+// Release underlying raw pointer.
 ptr2.reset(); // ptr1 and ptr2 point to nullptr.
 ~~~
 
