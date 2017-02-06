@@ -23,6 +23,11 @@ therefore it is intended for use on specific objects (e.g. Manager(s))
 and should not be spread all over the code base when not required.
 
 ## How ?
+
+Simgle header implementation.
+~~~cpp
+#include <sync_ptr.h>
+~~~
     
 Call assignment operator or copy constructor to link objects to the same underlying raw pointer.
 
@@ -33,12 +38,17 @@ eve::mem::sync_ptr<Foo> ptr3 = ptr2;
 ptr3->Bar(); // same as ptr1->Bar() and ptr2->Bar().
 ~~~
 
-Call reset(ptr) to update raw pointer on all linked instances.
+Call reset() to update raw pointer on all linked instances.
 ~~~cpp
 eve::mem::sync_ptr<Foo> ptr1 = eve::mem::make_sync<Foo>();
 eve::mem::sync_ptr<Foo> ptr2(ptr1);
+
+// Update underlying raw pointer
 Foo * foo = new Foo();
 ptr1.reset(foo); // ptr1 and ptr2 point to foo. 
+
+// Rlease underlying raw pointer.
+ptr2.reset(); // ptr1 and ptr2 point to nullptr.
 ~~~
 
 Helpers.
