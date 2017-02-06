@@ -98,6 +98,7 @@ void sync_ptr_deleter(void)
     assert(test_deleter_called);
 
     // Lambda expression.
+
     bool lambda_called = false;
     {
         std::function<void(Obj*)> deleter_ =
