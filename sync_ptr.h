@@ -3,14 +3,83 @@
 #ifndef __EVE_MEMORY_SYNC_PTR_H__
 #define __EVE_MEMORY_SYNC_PTR_H__
 
-#include <cassert>
 #include <atomic>
 #include <functional>
 #include <memory>
 
-#ifndef __EVE_MEMORY_PTR_UTILS_H__
-#include "eve/mem/ptr_utils.h"
-#endif
+
+namespace eve
+{
+    namespace mem
+    {
+        
+        /** 
+        * \brief Default allocator used by smart pointer(s).
+        * Calls "new" on template type.
+        */
+        template<
+            class TType>
+        struct default_allocator
+        {
+            constexpr default_allocator(
+                void)
+                noexcept = default;
+
+            template<
+                class TType2,
+                class = typename std::enable_if<std::is_convertible<TType2 *, TType *>::value, void>::type>
+                default_allocator(default_allocator<TType2> const &)
+                noexcept
+            {}
+
+            template<class ...TArg>
+            TType * operator()(
+                TArg && ...p_args)
+                const
+            {
+                static_assert(
+                    0 < sizeof(TType),
+                    "can't allocate an incomplete type");
+                return new TType(std::forward<TArg>(p_args)...);
+            }
+
+        }; // struct default_allocator
+
+
+        /**
+        * \brief Default deleter used by smart pointer(s).
+        * Calls "delete" on target template type pointer.
+        */
+        template<
+            class TType>
+        struct default_deleter
+        {	
+            constexpr default_deleter(
+                void) 
+                noexcept = default;
+
+            template<
+                class TType2,
+                class = typename std::enable_if<std::is_convertible<TType2 *, TType *>::value, void>::type>
+                default_deleter(default_deleter<TType2> const &)
+                noexcept
+            {}
+
+            void operator()(
+                TType * p_ptr) 
+                const noexcept
+            {	
+                static_assert(
+                    0 < sizeof(TType),
+                    "can't delete an incomplete type");
+                delete p_ptr;
+            }
+
+        }; // struct default_deleter
+
+    } // namespace mem
+
+} // namespace eve
 
 
 namespace eve
@@ -75,7 +144,7 @@ namespace eve
             private:
                 std::atomic<size_t>	        ref_count_;
                 std::atomic<size_t>	        ref_count_ptr_;
-                TPtr *					    ptr_;
+                std::atomic<TPtr *>		    ptr_;
                 TDeleter				    deleter_;
 
 
@@ -177,8 +246,12 @@ namespace eve
                     void) 
                     noexcept
                 {
-                    deleter_(ptr_);
-                    ptr_ = nullptr;
+                    auto ptr = ptr_.load();
+                    ptr_.store(nullptr);
+                    if (ptr)
+                    {
+                        deleter_(ptr_);
+                    }
                 }
 
 
@@ -213,7 +286,7 @@ namespace eve
                     void) 
                     noexcept
                 {
-                    if (ptr_)
+                    if (ptr_.load())
                     {
                         ref_count_ptr_.fetch_add(1U, std::memory_order_acquire);
                     }
@@ -226,7 +299,7 @@ namespace eve
                     void) 
                     noexcept
                 {
-                    if (ptr_)
+                    if (ptr_.load())
                     {
                         if (ref_count_ptr_.fetch_sub(1U, std::memory_order_release) == 1U)
                         {
@@ -260,7 +333,7 @@ namespace eve
                     void) 
                     const noexcept
                 {
-                    return ptr_;
+                    return ptr_.load();
                 }
 
 
@@ -271,10 +344,10 @@ namespace eve
                 {
                     assert(p_ptr);
 
-                    if (ptr_ != p_ptr)
+                    if (ptr_.load() != p_ptr)
                     {
                         release_ptr();
-                        ptr_ = p_ptr;
+                        ptr_.store(p_ptr);
                     }
                 }
 
