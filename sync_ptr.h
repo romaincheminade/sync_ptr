@@ -238,17 +238,17 @@ namespace eve
                 {
                     delete this;
                 }
-                /** 
-                * \brief Delete contained pointer.
-                * Called when pointer reference count drops to zero.
+                /**
+                * \brief Delete contained pointer and store target one using CAS.
                 */
-                inline void release_ptr(
-                    void) 
+                inline void release_ptr_cas(
+                    TPtr * p_ptr = nullptr)
                     noexcept
                 {
                     auto ptr = ptr_.load();
-                    ptr_.store(nullptr);
-                    if (ptr)
+                    if (ptr_.compare_exchange_weak(
+                        ptr,
+                        p_ptr))
                     {
                         deleter_(ptr_);
                     }
@@ -303,7 +303,7 @@ namespace eve
                     {
                         if (ref_count_ptr_.fetch_sub(1U, std::memory_order_release) == 1U)
                         {
-                            release_ptr();
+                            release_ptr_cas();
                         }
                     }
                 }
@@ -318,13 +318,13 @@ namespace eve
                     void) 
                     const noexcept
                 {
-                    return ref_count_.load(std::memory_order_relaxed);
+                    return ref_count_.load();
                 }
                 inline size_t get_ref_count_ptr(
                     void) 
                     const noexcept
                 {
-                    return ref_count_ptr_.load(std::memory_order_relaxed);
+                    return ref_count_ptr_.load();
                 }
 
 
@@ -343,12 +343,8 @@ namespace eve
                     noexcept
                 {
                     assert(p_ptr);
-
-                    if (ptr_.load() != p_ptr)
-                    {
-                        release_ptr();
-                        ptr_.store(p_ptr);
-                    }
+                    assert(p_ptr != ptr_.load());
+                    release_ptr_cas(p_ptr);
                 }
 
             public:
@@ -356,7 +352,7 @@ namespace eve
                     void) 
                     noexcept
                 {
-                    release_ptr();
+                    release_ptr_cas();
                 }
 
             }; // class ref_count_ptr
