@@ -12,7 +12,31 @@ When the original `sync_ptr` or one of its copy underlying raw pointer changes, 
 
 The underlying pointer memory is returned when the reference count drops to zero or another raw pointer is assigned.
 
-Reference count and underlying pointer storage are thread safe, lock free, wait free. 
+Reference count and underlying pointer storage are thread safe, lock free, wait free.
+
+Please note that `sync_ptr` behavior is different from `std::shared_ptr`.
+~~~cpp
+struct Obj
+{};
+std::shared_ptr<Obj> ptr1 = std::make_shared<Obj>();
+std::shared_ptr<Obj> ptr2 = ptr1;
+assert(ptr1 == ptr2);
+ptr1.reset(new Obj);
+assert(ptr1 != ptr2);
+
+eve::mem::sync_ptr<Obj> sptr1 = eve::mem::make_sync<Obj>();
+eve::mem::sync_ptr<Obj> sptr2 = sptr1;
+assert(sptr1 == sptr2);
+sptr1.reset(new Obj);
+assert(sptr1 == sptr2);
+~~~ 
+After calling **reset()** the two `sync_ptr` point to the **same** underlying raw pointer whereas the `std::shared_ptr` point to **different** ones.
+~~~cpp
+assert(ptr1 != ptr2);
+assert(sptr1 == sptr2);
+~~~
+
+
 
 ## Why ?
 
