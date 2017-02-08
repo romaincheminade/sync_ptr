@@ -34,18 +34,8 @@ void sync_ptr_synchro(void)
     assert(obj1.count() == obj3.count());
     assert(obj1 != obj2);
 
-    obj2.reset();
-    assert(obj2.get() == nullptr);
-    assert(obj1.get() != nullptr);
-    assert(obj3.get() != nullptr);
-
-    obj3.reset();
-    assert(obj3.get() == nullptr);
-    assert(obj1 == obj3);
-    assert(obj1.count() == obj3.count());
-
     obj1.reset(new Obj());
-    assert(obj1.get() != nullptr);
+    assert(obj1 != nullptr);
     assert(obj1 == obj3);
     assert(obj1.count() == obj3.count());
 }

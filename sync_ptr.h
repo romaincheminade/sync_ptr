@@ -347,14 +347,6 @@ namespace eve
                     release_ptr_cas(p_ptr);
                 }
 
-            public:
-                inline void reset(
-                    void) 
-                    noexcept
-                {
-                    release_ptr_cas();
-                }
-
             }; // class ref_count_ptr
 
 
@@ -503,13 +495,6 @@ namespace eve
                 noexcept
             {
                 ref_->set_ptr(p_ptr);
-            }
-
-            inline void reset(
-                void) 
-                noexcept
-            {
-                ref_->reset();
             }
 
 

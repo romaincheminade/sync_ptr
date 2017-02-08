@@ -8,9 +8,11 @@
 
 When the original `sync_ptr` or one of its copy underlying raw pointer changes, all `sync_ptr` and copies point to the updated raw pointer.
 
-`sync_ptr` and underlying raw pointer are reference counted and released when the reference count drops to zero.
+`sync_ptr` and underlying raw pointer are reference counted.
 
-Reference count and underlying pointer storage are thread safe.
+The underlying pointer memory is returned when the reference count drops to zero or another raw pointer is assigned.
+
+Reference count and underlying pointer storage are thread safe, lock free, wait free. 
 
 ## Why ?
 
@@ -45,10 +47,7 @@ eve::mem::sync_ptr<Foo> ptr2(ptr1);
 
 // Update underlying raw pointer
 Foo * foo = new Foo();
-ptr1.reset(foo); // ptr1 and ptr2 point to foo. 
-
-// Release underlying raw pointer.
-ptr2.reset(); // ptr1 and ptr2 point to nullptr.
+ptr1.reset(foo); // ptr1 and ptr2 point to foo.
 ~~~
 
 Helpers.
