@@ -50,7 +50,7 @@ and should not be spread all over the code base when not required.
 
 ## How ?
 
-Simgle header implementation.
+Single header implementation.
 ~~~cpp
 #include <sync_ptr.h>
 ~~~
