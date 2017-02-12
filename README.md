@@ -5,6 +5,9 @@ It involves multiple combined patterns and requires to keep track of the code ma
 
 Updating the resource on all references is not possible using standard smart pointers `std::shared_ptr`.
 
+Chained references are complex to maintain, update, swap, steal, reclame.
+These operation often requires costly traversals. 
+
 Providing an object managing these simplifies the design, 
 ease the developement process and guaranties execution safety. 
 
@@ -37,7 +40,7 @@ Single header implementation.
 #include <sync_ptr.h>
 ~~~
     
-**Call assignment operator or copy constructor to link objects to the same underlying raw pointer.**
+Call **copy assignment operator** or **copy constructor** to link objects to the same underlying raw pointer.
 
 ~~~cpp
 eve::mem::sync_ptr<Foo> ptr1 = eve::mem::make_sync<Foo>();
@@ -46,7 +49,7 @@ eve::mem::sync_ptr<Foo> ptr3 = ptr2;
 ptr3->Bar(); // same as ptr1->Bar() and ptr2->Bar().
 ~~~
 
-**Call reset() to update raw pointer on all linked references.**
+Call **reset()** to update raw pointer on all linked references.
 ~~~cpp
 eve::mem::sync_ptr<Foo> ptr1 = eve::mem::make_sync<Foo>();
 eve::mem::sync_ptr<Foo> ptr2(ptr1);
@@ -54,6 +57,31 @@ eve::mem::sync_ptr<Foo> ptr2(ptr1);
 // Update underlying raw pointer
 Foo * foo = new Foo();
 ptr1.reset(foo); // ptr1 and ptr2 point to foo.
+~~~
+
+Call **steal()** to steal the raw pointer from a `sync_ptr` chain.
+~~~cpp
+struct Obj
+{};
+
+// First Chain.
+eve::mem::sync_ptr<Obj> ptr1 = eve::mem::make_sync<Obj>();
+eve::mem::sync_ptr<Obj> ptr2 = ptr1;
+// First Chain raw pointer.
+auto raw = ptr1.get();
+
+// Second Chain.
+eve::mem::sync_ptr<Obj> ptr3 = eve::mem::make_sync<Obj>();
+eve::mem::sync_ptr<Obj> ptr4 = ptr3;
+
+// Stealing.
+ptr3.steal(ptr1);
+assert(ptr3.get() == raw);
+assert(ptr3 == ptr4);
+
+// Note that First Chain underlying raw pointer is now null.
+assert(ptr1.get() == nullptr);
+assert(ptr1 == ptr2);
 ~~~
 
 Helpers.
