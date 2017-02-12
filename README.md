@@ -19,6 +19,8 @@ ease the developement process and guaranties execution safety.
 
 `sync_ptr` automatically release the resource once it is no more in use.
 
+It offer stealing for faster rebase.
+
 `sync_ptr` is thread safe, lock free, wait free.
 
 *** 
