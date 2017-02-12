@@ -1,7 +1,5 @@
 # **sync_ptr** 
 
-*** 
-
 Instance management and propagation is challenging.
 It involves multiple combined patterns and requires to keep track of the code managing creation and reclamation of such resources.
 
