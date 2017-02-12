@@ -77,18 +77,14 @@ struct Obj
 {};
 std::shared_ptr<Obj> ptr1 = std::make_shared<Obj>();
 std::shared_ptr<Obj> ptr2 = ptr1;
-assert(ptr1 == ptr2);
+assert(ptr1 == ptr2); // same behavior
 ptr1.reset(new Obj);
-assert(ptr1 != ptr2);
+assert(ptr1 != ptr2); // different behavior
 
 eve::mem::sync_ptr<Obj> sptr1 = eve::mem::make_sync<Obj>();
 eve::mem::sync_ptr<Obj> sptr2 = sptr1;
-assert(sptr1 == sptr2);
+assert(sptr1 == sptr2); // same behavior
 sptr1.reset(new Obj);
-assert(sptr1 == sptr2);
+assert(sptr1 == sptr2); // different behavior
 ~~~ 
 After calling **reset()** the two `sync_ptr` point to the **same** underlying raw pointer whereas the `std::shared_ptr` point to **different** ones.
-~~~cpp
-assert(ptr1 != ptr2);
-assert(sptr1 == sptr2);
-~~~
