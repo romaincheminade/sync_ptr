@@ -241,7 +241,7 @@ namespace eve
                 /**
                 * \brief Delete contained pointer and store target one using CAS.
                 */
-                inline void release_ptr_cas(
+                inline bool release_ptr_cas(
                     TPtr * p_ptr = nullptr)
                     noexcept
                 {
@@ -250,8 +250,13 @@ namespace eve
                         ptr,
                         p_ptr))
                     {
-                        deleter_(ptr_);
+                        if (ptr)
+                        {
+                            deleter_(ptr);
+                        }
+                        return true;
                     }
+                    return false;
                 }
 
 
@@ -338,13 +343,34 @@ namespace eve
 
 
             public:
-                inline void set_ptr(
-                    TPtr * p_ptr) 
+                template<
+                    class TPtrCompatible>
+                inline bool set_ptr(
+                    TPtrCompatible * p_ptr)
                     noexcept
                 {
                     assert(p_ptr);
                     assert(p_ptr != ptr_.load());
-                    release_ptr_cas(p_ptr);
+                    return release_ptr_cas(p_ptr);
+                }
+
+                /** 
+                * \brief Steal underlying pointer from rhs.
+                * Release stored pointer on success.
+                * Does not affect reference counts.
+                */
+                inline bool steal(
+                    ref_count_ptr & p_rhs)
+                    noexcept
+                {
+                    auto rhs_ptr = p_rhs.ptr_.load();
+                    if (p_rhs.ptr_.compare_exchange_weak(
+                        rhs_ptr,
+                        nullptr))
+                    {
+                        return release_ptr_cas(rhs_ptr);
+                    }
+                    return false;
                 }
 
             }; // class ref_count_ptr
@@ -490,11 +516,23 @@ namespace eve
 
 
         public:
-            inline void reset(
+            inline bool reset(
                 TPtr * p_ptr) 
                 noexcept
             {
-                ref_->set_ptr(p_ptr);
+                return ref_->set_ptr(p_ptr);
+            }
+
+            /**
+            * \brief Steal underlying pointer from rhs.
+            * Release stored pointer on success.
+            * Does not affect reference counts.
+            */
+            inline bool steal(
+                sync_ptr<TPtr, TDeleter> & p_rhs)
+                noexcept
+            {
+                return ref_->steal(*(p_rhs.ref_));
             }
 
 

@@ -225,6 +225,37 @@ void sync_ptr_allocator_and_deleter(void)
 
 
 
+void sync_ptr_steal(void)
+{
+    struct Obj
+    {};
+
+    // First Chain.
+    eve::mem::sync_ptr<Obj> ptr1 = eve::mem::make_sync<Obj>();
+    eve::mem::sync_ptr<Obj> ptr2 = ptr1;
+    auto raw_1 = ptr1.get();
+    assert(raw_1);
+    assert(ptr1 == ptr2);
+
+    // Second Chain.
+    eve::mem::sync_ptr<Obj> ptr3 = eve::mem::make_sync<Obj>();
+    eve::mem::sync_ptr<Obj> ptr4 = ptr3;
+    auto raw_2 = ptr3.get();
+    assert(raw_2);
+    assert(ptr3 == ptr4);
+
+    // Stealing.
+    ptr3.steal(ptr1);
+    
+    assert(ptr3.get() == raw_1);
+    assert(ptr3 == ptr4);
+
+    assert(ptr1.get() == nullptr);
+    assert(ptr1 == ptr2);
+}
+
+
+
 //=================================================================================================
 int WINAPI WinMain(																					
     HINSTANCE /*hInstance*/, 																	
@@ -254,6 +285,7 @@ int WINAPI WinMain(
     sync_ptr_deleter();
     sync_ptr_allocator();
     sync_ptr_allocator_and_deleter();
+    sync_ptr_steal();
 
     return 0;																					
 }																								
