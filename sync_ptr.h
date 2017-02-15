@@ -246,7 +246,7 @@ namespace eve
                     noexcept
                 {
                     auto ptr = ptr_.load();
-                    if (ptr_.compare_exchange_weak(
+                    if (ptr_.compare_exchange_strong(
                         ptr,
                         p_ptr))
                     {
@@ -364,7 +364,7 @@ namespace eve
                     noexcept
                 {
                     auto rhs_ptr = p_rhs.ptr_.load();
-                    if (p_rhs.ptr_.compare_exchange_weak(
+                    if (p_rhs.ptr_.compare_exchange_strong(
                         rhs_ptr,
                         nullptr))
                     {

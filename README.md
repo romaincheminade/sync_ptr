@@ -1,12 +1,12 @@
 # **sync_ptr** 
 
 Instance management and propagation is challenging.
-It involves multiple combined patterns and requires to keep track of the code managing creation and reclamation of such resources.
+They involve multiple combined patterns and requires us to keep track of the code managing creation and reclamation of such resources.
 
-Updating the resource on all references is not possible using standard smart pointers `std::shared_ptr`.
+Updating a resource on all its references is not possible using standard smart pointers `std::shared_ptr`.
 
 Chained references are complex to maintain, update, swap, steal, reclame.
-These operation often requires costly traversals. 
+These operation often require costly traversals generating performance penalty. 
 
 Providing an object managing these simplifies the design, 
 ease the developement process and guaranties execution safety. 
@@ -15,7 +15,7 @@ ease the developement process and guaranties execution safety.
 
 `sync_ptr` uses RAII technique by binding the life cycle and propagation of a unique instance.
 
-**It updates that instance for all its references by a single safe call.**
+It updates that instance for all its references by a single safe call.
 
 `sync_ptr` automatically release the resource once it is no more in use.
 
