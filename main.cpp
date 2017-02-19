@@ -225,6 +225,25 @@ void sync_ptr_allocator_and_deleter(void)
 
 
 
+void sync_ptr_release(void)
+{
+    struct Obj
+    {};
+
+    eve::mem::sync_ptr<Obj> ptr = eve::mem::make_sync<Obj>();
+    assert(ptr);
+
+    Obj * raw = nullptr;
+    bool ret = ptr.release(raw);
+    assert(ret);
+    assert(raw);
+    assert(!ptr);
+
+    delete raw;
+}
+
+
+
 void sync_ptr_steal(void)
 {
     struct Obj
@@ -285,6 +304,7 @@ int WINAPI WinMain(
     sync_ptr_deleter();
     sync_ptr_allocator();
     sync_ptr_allocator_and_deleter();
+    sync_ptr_release();
     sync_ptr_steal();
 
     return 0;																					

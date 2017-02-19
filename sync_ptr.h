@@ -76,33 +76,33 @@ namespace eve
                 delete p_ptr;
             }
 
-        }; // struct default_deleter
-
-        /**
-        * \brief No op deleter used by smart pointer(s).
-        * Does NOT free memory, no operation performed.
-        */
-        template<
-            class TType>
-        struct noop_deleter
-        {	
-            constexpr noop_deleter(
-                void) 
-                noexcept = default;
-
+            /**
+            * \brief No op deleter used by smart pointer(s).
+            * Does NOT free memory, no operation performed.
+            */
             template<
-                class TType2,
-                class = typename std::enable_if<std::is_convertible<TType2 *, TType *>::value, void>::type>
-                noop_deleter(noop_deleter<TType2> const &)
-                noexcept
-            {}
+                class TType>
+                struct noop_deleter
+            {
+                constexpr noop_deleter(
+                    void)
+                    noexcept = default;
 
-            void operator()(
-                TType * p_ptr) 
-                const noexcept
-            {}
+                template<
+                    class TType2,
+                    class = typename std::enable_if<std::is_convertible<TType2 *, TType *>::value, void>::type>
+                    noop_deleter(noop_deleter<TType2> const &)
+                    noexcept
+                {}
 
-        }; // struct noop_deleter
+                void operator()(
+                    TType * p_ptr)
+                    const noexcept
+                {}
+
+            }; // struct noop_deleter
+
+        }; // struct default_deleter
 
     } // namespace mem
 
@@ -259,7 +259,7 @@ namespace eve
                 * \brief Delete this. 
                 * Called when this reference count drops to zero. 
                 */
-                inline void release(
+                inline void release_this(
                     void) 
                     noexcept
                 {
@@ -307,7 +307,7 @@ namespace eve
                 {
                     if (ref_count_.fetch_sub(1U, std::memory_order_release) == 1U)
                     {
-                        release();
+                        release_this();
                     }
                 }
 
@@ -386,11 +386,16 @@ namespace eve
                     return release_ptr_cas(nullptr);
                 }
 
-                /** 
-                * \brief Steal underlying pointer from rhs.
-                * Release stored pointer on success.
-                * Does not affect reference counts.
-                */
+                inline bool release(
+                    TPtr *& p_out)
+                    noexcept
+                {
+                    p_out = ptr_.load();
+                    return ptr_.compare_exchange_strong(
+                        p_out,
+                        nullptr);
+                }
+
                 inline bool steal(
                     ref_count_ptr & p_rhs)
                     noexcept
@@ -571,7 +576,17 @@ namespace eve
             {
                 return ref_->reset_ptr();
             }
-
+            /**
+            * \brief Releases the ownership of the managed object if any.
+            * Return the previously owned pointer and set the current to null.
+            * Return true on success, false otherwise.
+            */
+            inline bool release(
+                TPtr *& p_out)
+                noexcept
+            {
+                return ref_->release(p_out);
+            }
             /**
             * \brief Steal underlying pointer from rhs.
             * Release stored pointer on success.
