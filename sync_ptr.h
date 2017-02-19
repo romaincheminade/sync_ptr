@@ -3,6 +3,7 @@
 #ifndef __EVE_MEMORY_SYNC_PTR_H__
 #define __EVE_MEMORY_SYNC_PTR_H__
 
+#include <cassert>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -242,7 +243,7 @@ namespace eve
                 * \brief Delete contained pointer and store target one using CAS.
                 */
                 inline bool release_ptr_cas(
-                    TPtr * p_ptr = nullptr)
+                    TPtr * p_ptr)
                     noexcept
                 {
                     auto ptr = ptr_.load();
@@ -308,7 +309,7 @@ namespace eve
                     {
                         if (ref_count_ptr_.fetch_sub(1U, std::memory_order_release) == 1U)
                         {
-                            release_ptr_cas();
+                            release_ptr_cas(nullptr);
                         }
                     }
                 }
@@ -341,8 +342,6 @@ namespace eve
                     return ptr_.load();
                 }
 
-
-            public:
                 template<
                     class TPtrCompatible>
                 inline bool set_ptr(
@@ -352,6 +351,13 @@ namespace eve
                     assert(p_ptr);
                     assert(p_ptr != ptr_.load());
                     return release_ptr_cas(p_ptr);
+                }
+
+                inline bool reset_ptr(
+                    void)
+                    noexcept
+                {
+                    return release_ptr_cas(nullptr);
                 }
 
                 /** 
@@ -516,11 +522,28 @@ namespace eve
 
 
         public:
+            /** 
+            * \brief Set underlying pointer.
+            * Free previous pointer on success.
+            * Return true on success false otherwise.
+            */
             inline bool reset(
                 TPtr * p_ptr) 
                 noexcept
             {
+                assert(p_ptr);
                 return ref_->set_ptr(p_ptr);
+            }
+            /**
+            * \brief Set underlying pointer to null.
+            * Free previous pointer on success.
+            * Return true on success false otherwise.
+            */
+            inline bool reset(
+                void)
+                noexcept
+            {
+                return ref_->reset_ptr();
             }
 
             /**
