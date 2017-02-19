@@ -78,6 +78,32 @@ namespace eve
 
         }; // struct default_deleter
 
+        /**
+        * \brief No op deleter used by smart pointer(s).
+        * Does NOT free memory, no operation performed.
+        */
+        template<
+            class TType>
+        struct noop_deleter
+        {	
+            constexpr noop_deleter(
+                void) 
+                noexcept = default;
+
+            template<
+                class TType2,
+                class = typename std::enable_if<std::is_convertible<TType2 *, TType *>::value, void>::type>
+                noop_deleter(noop_deleter<TType2> const &)
+                noexcept
+            {}
+
+            void operator()(
+                TType * p_ptr) 
+                const noexcept
+            {}
+
+        }; // struct noop_deleter
+
     } // namespace mem
 
 } // namespace eve
