@@ -33,7 +33,7 @@ The underlying pointer memory is returned when the reference count drops to zero
 - **atomic**, offers faster concurrent environment execution (lock free and wait free) but weaker execution guarantee, all operation return their success state leaving the programmer the choice in the response strategy.
 ***
 
-### Policy Based sync_ptr
+### Policy sync_ptr
 Header only implementation for easy integration.
 ~~~cpp
 #include <mem/sync_ptr.h>
@@ -102,7 +102,7 @@ For convenience, all relational operators are provided.
 
 ***
 
-### Atomic Operation Based sync_ptr
+### Atomic sync_ptr
 
 The same methods as the policy based one are provided.
 The main difference is that they return their execution success state.
