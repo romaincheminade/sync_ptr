@@ -1,106 +1,115 @@
 # **sync_ptr** 
 
-Instance management and propagation is challenging.
-They involve multiple combined patterns and requires us to keep track of the code managing creation and reclamation of such resources.
+Instance management (and propagation) involves multiple combined patterns and requires us to keep track of the code managing creation and reclamation of such resources.
 
-Updating a resource on all its references is not possible using standard smart pointers `std::shared_ptr`.
-
-Chained references are complex to maintain, update, swap, steal, reclame.
+Chained references are complex to maintain, update, swap, steal, reclaim.
 These operation often require costly traversals generating performance penalty. 
 
 Providing an object managing these simplifies the design, 
-ease the developement process and guaranties execution safety. 
+ease the development process and guaranties execution safety. 
 
 ***
+`sync_ptr` uses RAII technique by binding the life cycle and propagation of a managed object.
 
-`sync_ptr` uses RAII technique by binding the life cycle and propagation of a unique instance.
-
-It updates that instance for all its references by a single safe call.
+The object management is populated on all chained `sync_ptr` instances in a single call.
 
 `sync_ptr` automatically release the resource once it is no more in use.
-
-It offer stealing for faster rebase.
-
-`sync_ptr` is thread safe, lock free, wait free.
 
 *** 
 
 `sync_ptr` stands for **synchronized pointer**.
 
-`sync_ptr` objects that are either **copy constructed** or **copy assigned** point to the same underlying raw pointer.
+`sync_ptr` objects that are **copy constructed** or **copy assigned** point to the same underlying raw pointer.
 
 **When the original `sync_ptr` or one of its copy underlying raw pointer changes, all `sync_ptr` and copies point to the updated raw pointer.**
 
-`sync_ptr` and underlying raw pointer are reference counted.
+`sync_ptr` and underlying raw pointer are **reference counted**.
 
 The underlying pointer memory is returned when the reference count drops to zero or another raw pointer is assigned.
 
 ***
+**`sync_ptr` come in 2 different flavors**
+- **policy**, offers strong execution guarantee and thread safety using default policies, and is easily extensible using the provided policies or any desired one. 
+- **atomic**, offers faster concurrent environment execution (lock free and wait free) but weaker execution guarantee, all operation return their success state leaving the programmer the choice in the response strategy.
+***
 
-Single header implementation.
+### Policy Based sync_ptr
+Header only implementation for easy integration.
 ~~~cpp
-#include <sync_ptr.h>
+#include <mem/sync_ptr.h>
 ~~~
     
 Call **copy assignment operator** or **copy constructor** to link objects to the same underlying raw pointer.
 
 ~~~cpp
-eve::mem::sync_ptr<Foo> ptr1 = eve::mem::make_sync<Foo>();
-eve::mem::sync_ptr<Foo> ptr2(ptr1);
-eve::mem::sync_ptr<Foo> ptr3 = ptr2;
-ptr3->Bar(); // same as ptr1->Bar() and ptr2->Bar().
+struct Obj
+{
+    void do_something();
+};
+
+mem::sync_ptr<Obj> ptr1 = mem::make_sync<Obj>();
+mem::sync_ptr<Obj> ptr2(ptr1);
+mem::sync_ptr<Obj> ptr3 = ptr2;
+ptr3->do_something(); // same as ptr1->do_something() and ptr2->do_something().
 ~~~
 
 Call **reset()** to update raw pointer on all linked references.
 ~~~cpp
-eve::mem::sync_ptr<Foo> ptr1 = eve::mem::make_sync<Foo>();
-eve::mem::sync_ptr<Foo> ptr2(ptr1);
+mem::sync_ptr<Obj> ptr1 = mem::make_sync<Obj>();
+mem::sync_ptr<Obj> ptr2(ptr1);
 
 // Update underlying raw pointer
-Foo * foo = new Foo();
-ptr1.reset(foo); // ptr1 and ptr2 point to foo.
+Obj * obj = new Obj();
+ptr1.reset(obj); // ptr1 and ptr2 point to obj.
 ~~~
 
-Call **steal()** to steal the raw pointer from a `sync_ptr` chain.
+Call **release()** to steal the raw pointer from a `sync_ptr` chain.
 ~~~cpp
-struct Obj
-{};
-
-// First Chain.
-eve::mem::sync_ptr<Obj> ptr1 = eve::mem::make_sync<Obj>();
-eve::mem::sync_ptr<Obj> ptr2 = ptr1;
-// First Chain raw pointer.
-auto raw = ptr1.get();
-
-// Second Chain.
-eve::mem::sync_ptr<Obj> ptr3 = eve::mem::make_sync<Obj>();
-eve::mem::sync_ptr<Obj> ptr4 = ptr3;
+mem::sync_ptr<Obj> ptr = mem::make_sync<Obj>();
 
 // Stealing.
-ptr3.steal(ptr1);
-assert(ptr3.get() == raw);
-assert(ptr3 == ptr4);
+Obj * raw = ptr.release();
 
-// Note that First Chain underlying raw pointer is now null.
-assert(ptr1.get() == nullptr);
-assert(ptr1 == ptr2);
+// Note that First underlying raw pointer is now null.
+assert(ptr.get() == nullptr);
+~~~
+
+Call **exchange()** to steal the raw pointer from a `sync_ptr` chain and store a target one in the chain.
+~~~cpp
+mem::sync_ptr<Obj> ptr = mem::make_sync<Obj>();
+
+// Stealing.
+Obj * ptr_add   = ptr.get();
+Obj * raw       = new Obj();
+std::unique_ptr<Obj> ptr_xc(ptr.exchange(raw));
+
+// "ptr_xc" now contains original underlying pointer from "ptr".
+assert(ptr_xc);
+assert(ptr_xc.get() == ptr_add);
+
+// "ptr" now contains "raw".
+assert(ptr);
+assert(ptr.get() == raw);
 ~~~
 
 Helpers.
 ~~~cpp
-eve::mem::make_sync()
-eve::mem::make_sync_with_deleter()
-eve::mem::make_sync_with_allocator()
-eve::mem::make_sync_with_allocator_and_deleter()
+mem::make_sync()
+mem::make_sync_with_allocator()
 ~~~
-
-Deleter must provide "void operator(T * ptr)".
-Allocator must provide "T * operator(...)".
 
 For convenience, all relational operators are provided.
 
 ***
 
+### Atomic Operation Based sync_ptr
+
+The same methods as the policy based one are provided.
+The main difference is that they return their execution success state.
+
+See `cc/sync_ptr.h` and `tests/cc_sync_ptr.h .cpp` for usage example.
+
+***
 Please note that `sync_ptr` behavior is different from `std::shared_ptr`.
 ~~~cpp
 struct Obj
@@ -111,8 +120,8 @@ assert(ptr1 == ptr2); // same behavior
 ptr1.reset(new Obj);
 assert(ptr1 != ptr2); // different behavior
 
-eve::mem::sync_ptr<Obj> sptr1 = eve::mem::make_sync<Obj>();
-eve::mem::sync_ptr<Obj> sptr2 = sptr1;
+mem::sync_ptr<Obj> sptr1 = mem::make_sync<Obj>();
+mem::sync_ptr<Obj> sptr2 = sptr1;
 assert(sptr1 == sptr2); // same behavior
 sptr1.reset(new Obj);
 assert(sptr1 == sptr2); // different behavior
