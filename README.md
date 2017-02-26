@@ -100,7 +100,7 @@ mem::make_sync()
 mem::make_sync_with_allocator()
 ~~~
 
-For convenience, all relational operators are provided.
+For convenience, relational operators are provided.
 
 ***
 
