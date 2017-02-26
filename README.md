@@ -28,9 +28,11 @@ The object management is populated on all chained `sync_ptr` instances in a sing
 The underlying pointer memory is returned when the reference count drops to zero or another raw pointer is assigned.
 
 ***
+
 **`sync_ptr` come in 2 different flavors**
 - **policy**, offers strong execution guarantee and thread safety using default policies, and is easily extensible using the provided policies or any desired one. 
 - **atomic**, offers faster concurrent environment execution (lock free and wait free) but weaker execution guarantee, all operation return their success state leaving the programmer the choice in the response strategy.
+
 ***
 
 ### Policy sync_ptr
