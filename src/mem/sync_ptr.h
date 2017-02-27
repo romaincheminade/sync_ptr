@@ -118,7 +118,15 @@ namespace mem
             inline void release_ptr(
                 TPtr * p_ptr)
                 noexcept
-            {
+			{
+				static_assert(
+					noexcept(free(p_ptr)),
+					"Deleter policy must offer no-throw guarantee.");
+
+				static_assert(
+					noexcept(set(p_ptr)),
+					"Pointer holder policy must offer no-throw guarantee.");
+
                 auto p = set(p_ptr);                    
                 if (p)
                 {
@@ -134,7 +142,11 @@ namespace mem
             inline void ref(
                 void) 
                 noexcept
-            {
+			{
+				static_assert(
+					noexcept(increment()),
+					"Reference counter policy must offer no-throw guarantee.");
+
                 increment();
             }
             /** 
@@ -144,7 +156,11 @@ namespace mem
             inline void unref(
                 void) 
                 noexcept
-            {
+			{
+				static_assert(
+					noexcept(decrement()),
+					"Reference counter policy must offer no-throw guarantee.");
+
                 if (decrement() == 1U)
                 {
                     release_this();
@@ -157,7 +173,11 @@ namespace mem
             inline void ref_ptr(
                 void) 
                 noexcept
-            {
+			{
+				static_assert(
+					noexcept(increment_ptr()),
+					"Reference counter policy must offer no-throw guarantee.");
+
                 if (get_ptr())
                 {
                     increment_ptr();
@@ -170,7 +190,11 @@ namespace mem
             inline void unref_ptr(
                 void) 
                 noexcept
-            {
+			{
+				static_assert(
+					noexcept(decrement_ptr()),
+					"Reference counter policy must offer no-throw guarantee.");
+
                 if (get_ptr())
                 {
                     if (decrement_ptr() == 1U)
@@ -205,7 +229,11 @@ namespace mem
             inline TPtr * release(
                 void)
                 noexcept
-            {
+			{
+				static_assert(
+					noexcept(set(nullptr)),
+					"Pointer holder policy must offer no-throw guarantee.");
+
                 return set(nullptr);
             }
 
@@ -215,6 +243,10 @@ namespace mem
                 TPtrCompatible * p_ptr)
                 noexcept
             {
+				static_assert(
+					noexcept(set(p_ptr)),
+					"Pointer holder policy must offer no-throw guarantee.");
+
                 assert(p_ptr);
                 assert(p_ptr != get_ptr());
                 return set(p_ptr);
@@ -229,21 +261,33 @@ namespace mem
             inline size_t get_ref_count(
                 void)
                 const noexcept
-            {
+			{
+				static_assert(
+					noexcept(count()),
+					"Reference counter policy must offer no-throw guarantee.");
+
                 return count();
             }
             
             inline size_t get_ref_count_ptr(
                 void)
                 const noexcept
-            {
+			{
+				static_assert(
+					noexcept(count_ptr()),
+					"Reference counter policy must offer no-throw guarantee.");
+
                 return count_ptr();
             }
 
             inline TPtr * get_ptr(
                 void)
                 const noexcept
-            {
+			{
+				static_assert(
+					noexcept(get()),
+					"Pointer holder policy must offer no-throw guarantee.");
+
                 return get();
             }
 
