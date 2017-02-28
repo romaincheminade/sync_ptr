@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-#ifndef __EVE_MEMORY_SYNC_PTR_POLICY_H__
+#ifndef __MEMORY_SYNC_PTR_POLICY_H__
 #include "mem/sync_ptr_policy.h"
 #endif
 

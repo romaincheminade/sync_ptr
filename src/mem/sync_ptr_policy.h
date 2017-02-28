@@ -130,8 +130,8 @@ namespace mem
         }
 
         inline size_t decrement(
-			void)
-			noexcept
+            void)
+            noexcept
         {
             size_t ret = ref_count_;
             ref_count_--;
@@ -146,8 +146,8 @@ namespace mem
         }
 
         inline size_t decrement_ptr(
-			void)
-			noexcept
+            void)
+            noexcept
         {
             size_t ret = ref_count_ptr_;
             ref_count_ptr_--;
@@ -196,8 +196,8 @@ namespace mem
         }
 
         inline size_t decrement(
-			void)
-			noexcept
+            void)
+            noexcept
         {
             return ref_count_.fetch_sub(1U, std::memory_order_release);
         }
@@ -210,8 +210,8 @@ namespace mem
         }
 
         inline size_t decrement_ptr(
-			void)
-			noexcept
+            void)
+            noexcept
         {
             return ref_count_ptr_.fetch_sub(1U, std::memory_order_release);
         }
@@ -288,15 +288,15 @@ namespace mem
 
     public:
         inline ptr_holder_ts(
-			void)
-			noexcept
+            void)
+            noexcept
             : ptr_(nullptr)
             , mtx_()
         {}
 
         inline explicit ptr_holder_ts(
-			TPtr * p_ptr)
-			noexcept
+            TPtr * p_ptr)
+            noexcept
             : ptr_(p_ptr)
             , mtx_()
         {}
