@@ -426,8 +426,10 @@ namespace mem
         * \brief Set underlying pointer.
         * Free previous pointer.
         */
+        template <
+            class TPtrCompatible>
         inline void reset(
-            TPtr * p_ptr) 
+            TPtrCompatible * p_ptr)
             noexcept
         {
             assert(p_ptr);
@@ -459,8 +461,10 @@ namespace mem
         /**
         * \brief Set managed object and return previous one.
         */
+        template <
+            class TPtrCompatible>
         inline TPtr * exchange(
-            TPtr * p_ptr)
+            TPtrCompatible * p_ptr)
             noexcept
         {
             return ref_->exchange(p_ptr);
