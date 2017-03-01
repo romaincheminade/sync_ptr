@@ -145,7 +145,7 @@ namespace cc
                 void)
                 noexcept
             {
-                ref_count_.fetch_add(1U, std::memory_order_acquire);
+                ref_count_.fetch_add(1U);
             }
             /**
             * \brief Decrements this reference count,
@@ -155,7 +155,7 @@ namespace cc
                 void)
                 noexcept
             {
-                if (ref_count_.fetch_sub(1U, std::memory_order_release) == 1U)
+                if (ref_count_.fetch_sub(1U) == 1U)
                 {
                     release_this();
                 }
@@ -170,7 +170,7 @@ namespace cc
             {
                 if (ptr_.load())
                 {
-                    ref_count_ptr_.fetch_add(1U, std::memory_order_acquire);
+                    ref_count_ptr_.fetch_add(1U);
                 }
             }
             /**
@@ -183,7 +183,7 @@ namespace cc
             {
                 if (ptr_.load())
                 {
-                    if (ref_count_ptr_.fetch_sub(1U, std::memory_order_release) == 1U)
+                    if (ref_count_ptr_.fetch_sub(1U) == 1U)
                     {
                         release_ptr_cas(nullptr);
                     }

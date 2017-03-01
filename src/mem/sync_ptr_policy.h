@@ -192,28 +192,28 @@ namespace mem
             void)
             noexcept
         {
-            ref_count_.fetch_add(1U, std::memory_order_acquire);
+            ref_count_.fetch_add(1U);
         }
 
         inline size_t decrement(
             void)
             noexcept
         {
-            return ref_count_.fetch_sub(1U, std::memory_order_release);
+            return ref_count_.fetch_sub(1U);
         }
 
         inline void increment_ptr(
             void)
             noexcept
         {
-            ref_count_ptr_.fetch_add(1U, std::memory_order_acquire);
+            ref_count_ptr_.fetch_add(1U);
         }
 
         inline size_t decrement_ptr(
             void)
             noexcept
         {
-            return ref_count_ptr_.fetch_sub(1U, std::memory_order_release);
+            return ref_count_ptr_.fetch_sub(1U);
         }
 
         inline size_t count(
