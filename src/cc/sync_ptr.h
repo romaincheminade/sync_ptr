@@ -41,16 +41,16 @@ namespace cc
 
     private:
         /**
-        * \class cc::sync_ptr::ref_count_ptr
+        * \class cc::sync_ptr::body
         *
         * \brief Reference counted template type pointer.
-        * Deletes pointer when reference count is zero.
-        * Reference count is atomic.
+        * Deletes pointer when reference count drops to zero.
+        * Reference count and pointer are atomic.
         */
         template<
             class TPtr,
             template <class T> class TDeleter>
-        class ref_count_ptr final
+        class body final
             : private TDeleter<TPtr>
         {
 
@@ -69,13 +69,13 @@ namespace cc
             //////////////////////////////////////
 
         public:
-            ref_count_ptr(ref_count_ptr const & p_other) = delete;
-            ref_count_ptr(ref_count_ptr && p_other) = delete;
-            void operator=(ref_count_ptr & p_arg) = delete;
-            void operator=(ref_count_ptr && p_arg) = delete;
+            body(body const & p_other) = delete;
+            body(body && p_other) = delete;
+            void operator=(body & p_arg) = delete;
+            void operator=(body && p_arg) = delete;
 
         public:
-            ref_count_ptr(
+            body(
                 void)
                 noexcept
                 // Members.
@@ -86,7 +86,7 @@ namespace cc
 
             template<
                 class TPtrCompatible>
-            ref_count_ptr(
+            body(
                 TPtrCompatible * p_ptr)
                 noexcept
                 // Members.
@@ -98,7 +98,7 @@ namespace cc
             }
 
         private:
-            ~ref_count_ptr(
+            ~body(
                 void)
                 noexcept
             {}
@@ -265,7 +265,7 @@ namespace cc
                     p_ptr);
             }
 
-        }; // class ref_count_ptr
+        }; // class body
 
 
         //////////////////////////////////////
@@ -277,13 +277,13 @@ namespace cc
             TPtr,
             TDeleter> sync_ptr_t;
 
-        typedef typename ref_count_ptr<
+        typedef typename body<
             TPtr,
-            TDeleter> ref_ptr_t;
+            TDeleter> body_t;
 
 
     private:
-        ref_ptr_t *		ref_;
+        body_t *		body_;
 
 
         //////////////////////////////////////
@@ -295,7 +295,7 @@ namespace cc
             void)
             noexcept
             // Members.
-            : ref_(new ref_ptr_t())
+            : body_(new body_t())
         {}
 
         template<
@@ -304,36 +304,36 @@ namespace cc
             TPtrCompatible * p_ptr)
             noexcept
             // Members.
-            : ref_(new ref_ptr_t(p_ptr))
+            : body_(new body_t(p_ptr))
         {}
 
         sync_ptr(
             sync_ptr_t && p_other)
             noexcept
             // Members.
-            : ref_(p_other.ref_)
+            : body_(p_other.body_)
         {
-            p_other.ref_ = nullptr;
+            p_other.body_ = nullptr;
         }
 
         sync_ptr(
             sync_ptr_t const & p_other)
             noexcept
             // Members.
-            : ref_(p_other.ref_)
+            : body_(p_other.body_)
         {
-            ref_->ref();
-            ref_->ref_ptr();
+            body_->ref();
+            body_->ref_ptr();
         }
 
         ~sync_ptr(
             void)
             noexcept
         {
-            if (ref_)
+            if (body_)
             {
-                ref_->unref_ptr();
-                ref_->unref();
+                body_->unref_ptr();
+                body_->unref();
             }
         }
 
@@ -341,11 +341,11 @@ namespace cc
             sync_ptr_t && p_other)
             noexcept
         {
-            auto * tmp = p_other.ref_;
-            if (tmp != ref_)
+            auto * tmp = p_other.body_;
+            if (tmp != body_)
             {
-                ref_ = tmp;
-                p_other.ref_ = nullptr;
+                body_ = tmp;
+                p_other.body_ = nullptr;
             }
             return *this;
         }
@@ -354,15 +354,15 @@ namespace cc
             sync_ptr_t const & p_other)
             & noexcept
         {
-            auto * tmp = p_other.ref_;
-            if (tmp != ref_)
+            auto * tmp = p_other.body_;
+            if (tmp != body_)
             {
-                ref_->unref_ptr();
-                ref_->unref();
+                body_->unref_ptr();
+                body_->unref();
 
-                ref_ = tmp;
-                ref_->ref();
-                ref_->ref_ptr();
+                body_ = tmp;
+                body_->ref();
+                body_->ref_ptr();
             }
             return *this;
         }
@@ -371,9 +371,9 @@ namespace cc
             sync_ptr_t & p_rhs)
             noexcept
         {
-            auto tmp = ref_;
-            ref_ = p_rhs.ref_;
-            p_rhs.ref_ = tmp;
+            auto tmp = body_;
+            body_ = p_rhs.body_;
+            p_rhs.body_ = tmp;
         }
 
 
@@ -382,7 +382,7 @@ namespace cc
             void)
             const noexcept
         {
-            return ref_->get_ref_count_ptr();
+            return body_->get_ref_count_ptr();
         }
 
 
@@ -399,7 +399,7 @@ namespace cc
             noexcept
         {
             assert(p_ptr);
-            return ref_->set_ptr(p_ptr);
+            return body_->set_ptr(p_ptr);
         }
         /**
         * \brief Set underlying pointer to null.
@@ -410,7 +410,7 @@ namespace cc
             void)
             noexcept
         {
-            return ref_->reset_ptr();
+            return body_->reset_ptr();
         }
 
 
@@ -424,7 +424,7 @@ namespace cc
             TPtr ** p_out)
             noexcept
         {
-            return ref_->release(p_out);
+            return body_->release(p_out);
         }
         /**
         * \brief Set managed object and return previous one.
@@ -438,7 +438,7 @@ namespace cc
             TPtrCompatible * p_ptr)
             noexcept
         {
-            return ref_->exchange(p_out, p_ptr);
+            return body_->exchange(p_out, p_ptr);
         }
 
 
@@ -447,7 +447,7 @@ namespace cc
             void)
             const noexcept
         {
-            return ref_->get_ptr();
+            return body_->get_ptr();
         }
 
 
