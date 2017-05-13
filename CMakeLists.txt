@@ -7,6 +7,7 @@ include( ${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectFlags.cmake )
 
 # Memory.
 set(SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/linked_ptr.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/sync_ptr.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/sync_ptr_policy.h
     )

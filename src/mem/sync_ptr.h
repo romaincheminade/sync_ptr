@@ -23,13 +23,18 @@ namespace mem
     template<class TPtr>
     using sync_ptr_deleter      = default_deleter<TPtr>;
 
+    template <class TPtr, template <class T> class TDeleter>
+    class linked_ptr;
+
 
     template <
         class TPtr,
         template <class T> class TDeleter = sync_ptr_deleter>
     class sync_ptr final
     {
+
     private:
+        friend class linked_ptr<TPtr, TDeleter>;
         using sync_ptr_t = sync_ptr<TPtr, TDeleter>;
 
     private:
@@ -49,8 +54,7 @@ namespace mem
                 , ref_count_ptr_{ 0 }
             {}
             
-            template<
-                class TPtrCompatible>
+            template<class TPtrCompatible>
             body(TPtrCompatible * p_ptr) noexcept
                 : ptr_{ p_ptr }
                 , ref_count_(1)
@@ -213,12 +217,8 @@ namespace mem
 
         sync_ptr_t & operator=(sync_ptr_t && p_rhs) noexcept
         {
-            auto * tmp = p_rhs.body_;
-            if (tmp != body_)
-            {
-                body_ = tmp;
-                p_rhs.body_ = nullptr;
-            }
+            body_ = p_rhs.body_;
+            p_rhs.body_ = nullptr;
             return *this;
         }
 
@@ -237,15 +237,9 @@ namespace mem
             return *this;
         }
 
-        void swap(sync_ptr & p_rhs) noexcept
+        void swap(sync_ptr_t & p_rhs) noexcept
         {
             std::swap(body_, p_rhs.body_);
-        }
-
-    public:
-        std::int32_t count(void) const noexcept
-        {
-            return body_->ref_count_ptr();
         }
 
     public:
@@ -261,7 +255,6 @@ namespace mem
             body_->reset_ptr();
         }
 
-    public:
         TPtr * release(void) noexcept
         {
             return body_->release();
@@ -279,14 +272,14 @@ namespace mem
             return body_->get_ptr();
         }
 
-        TPtr & operator*(void) const noexcept
-        {
-            return *get();
-        }
-
         TPtr * operator->(void) const noexcept
         {
             return get();
+        }
+
+        TPtr & operator*(void) const noexcept
+        {
+            return *get();
         }
 
     public:
@@ -298,6 +291,11 @@ namespace mem
         operator bool(void) const noexcept
         {
             return valid();
+        }
+
+        std::int32_t count(void) const noexcept
+        {
+            return body_->ref_count_ptr();
         }
 
     }; // class sync_ptr
