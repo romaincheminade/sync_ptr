@@ -2,7 +2,12 @@
 #ifndef __MEMORY_SYNC_PTR_H__
 #define __MEMORY_SYNC_PTR_H__
 
+
+#include <atomic>
 #include <cassert>
+#include <cstdint>
+#include <functional>
+#include <utility>
 
 #ifndef __MEMORY_SYNC_PTR_POLICY_H__
 #include "mem/sync_ptr_policy.h"
@@ -13,356 +18,191 @@ namespace mem
 {
 
     template<class TPtr>
-    using sync_ptr_allocator			= default_allocator<TPtr>;
+    using sync_ptr_allocator    = default_allocator<TPtr>;
 
     template<class TPtr>
-    using sync_ptr_deleter				= default_deleter<TPtr>;
-
-    template<class TPtr>
-    using sync_ptr_holder				= ptr_holder_ts<TPtr>;
-
-    using sync_ptr_ref_counter			= atomic_ref_counter;
+    using sync_ptr_deleter      = default_deleter<TPtr>;
 
 
-    /** 
-    * \class mem::sync_ptr
-    *
-    * \brief Reference counted synchronized pointer.
-    * Used to avoid cross module cycle.
-    * When the original sync_ptr or one of its copy underlying raw pointer changes, 
-    * all sync_ptr and copies point to the updated raw pointer.
-    */
     template <
         class TPtr,
-        template <class T> class TDeleter = sync_ptr_deleter,
-        template <class T> class THolder = sync_ptr_holder,
-        class TRefCounter = sync_ptr_ref_counter>
+        template <class T> class TDeleter = sync_ptr_deleter>
     class sync_ptr final
     {
-
-    public:
-        typedef typename TPtr		    pointer_type;
-        typedef typename TDeleter<TPtr>	deleter_type;
-        typedef typename THolder<TPtr>	holder_type;
-        typedef typename TRefCounter	reference_counter_type;
-
+    private:
+        using sync_ptr_t = sync_ptr<TPtr, TDeleter>;
 
     private:
-        /**
-        * \class mem::sync_ptr::body
-        *
-        * \brief Reference counted template type pointer.
-        * Deletes pointer when reference count drops to zero.
-        */
-        template<
-            class TPtr,
-            template <class T> class TDeleter,
-            template <class T> class THolder,
-            class TRefCounter>
         class body final
             : private TDeleter<TPtr>
-            , private THolder<TPtr>
-            , private TRefCounter
         {
 
-            //////////////////////////////////////
-            //              METHODS             //
-            //////////////////////////////////////
+        private:
+            TPtr *                           ptr_;
+            std::atomic<std::int32_t>        ref_count_;
+            std::atomic<std::int32_t>        ref_count_ptr_;
 
         public:
-            body(body const & p_other) = delete;
-            body(body && p_other) = delete;
-            void operator=(body & p_arg) = delete;
-            void operator=(body && p_arg) = delete;
-
-        public:
-            /** 
-            * \brief Construct default empty object. 
-            */
-            body(
-                void)
-                noexcept
+            body(void) noexcept
+                : ptr_{ nullptr }
+                , ref_count_{ 1U }
+                , ref_count_ptr_{ 0 }
             {}
             
-            /** 
-            * \brief Construct with compatible pointer. 
-            */
             template<
                 class TPtrCompatible>
-            body(
-                TPtrCompatible * p_ptr)
-                noexcept 
-                // Inheritance.
-                : THolder<TPtr>(p_ptr)
+            body(TPtrCompatible * p_ptr) noexcept
+                : ptr_{ p_ptr }
+                , ref_count_(1)
+                , ref_count_ptr_(1)
             {
                 assert(p_ptr);
-                increment_ptr();
             }
 
         private:
-            ~body(
-                void) 
-                noexcept
-            {}
+            ~body(void) noexcept = default;
 
+        public:
+            body(body const & p_rhs) = delete;
+            body(body && p_rhs) = delete;
+            void operator=(body & p_arg) = delete;
+            void operator=(body && p_arg) = delete;
 
         private:
-            inline void release_this(
-                void) 
-                noexcept
+            void release_this(void) noexcept
             {
                 delete this;
             }
 
-            inline void release_ptr(
-                TPtr * p_ptr)
-                noexcept
+        private:
+            TPtr * set(TPtr * p_ptr) noexcept
+            {
+                auto p = ptr_;
+                ptr_ = p_ptr;
+                return p;
+            }
+
+            void release_ptr(TPtr * p_ptr) noexcept
             {
                 static_assert(
-                    noexcept(free(p_ptr)),
+                    noexcept(this->deallocate(p_ptr)),
                     "Deleter policy must offer no-throw guarantee.");
-
-                static_assert(
-                    noexcept(set(p_ptr)),
-                    "Pointer holder policy must offer no-throw guarantee.");
 
                 auto p = set(p_ptr);                    
                 if (p)
                 {
-                    free(p);
+                    this->deallocate(p);
                 }
             }
 
-
         public:
-            /** 
-            * \brief Increments this reference count. 
-            */
-            inline void ref(
-                void) 
-                noexcept
+            void ref(void)  noexcept
             {
-                static_assert(
-                    noexcept(increment()),
-                    "Reference counter policy must offer no-throw guarantee.");
-
-                increment();
+                ref_count_.fetch_add(1U, std::memory_order_release);
             }
-            /** 
-            * \brief Decrements this reference count. 
-            * Release this if reference count drops to zero. 
-            */
-            inline void unref(
-                void) 
-                noexcept
-            {
-                static_assert(
-                    noexcept(decrement()),
-                    "Reference counter policy must offer no-throw guarantee.");
 
-                if (decrement() == 1U)
+            void unref(void) noexcept
+            {
+                if (ref_count_.fetch_sub(1, std::memory_order_release) == 1U)
                 {
                     release_this();
                 }
             }
 
-            /** 
-            * \brief Increments pointer reference count. 
-            */
-            inline void ref_ptr(
-                void) 
-                noexcept
+            std::int32_t ref_count(void) const noexcept
             {
-                static_assert(
-                    noexcept(increment_ptr()),
-                    "Reference counter policy must offer no-throw guarantee.");
+                return ref_count_.load(std::memory_order_acquire);
+            }
 
+        public:
+            void ref_ptr(void) noexcept
+            {
                 if (get_ptr())
                 {
-                    increment_ptr();
+                    ref_count_ptr_.fetch_add(1, std::memory_order_release);
                 }
             }
-            /** 
-            * \brief Decrements pointer reference count. 
-            * Release pointer if reference count drops to zero. 
-            */
-            inline void unref_ptr(
-                void) 
-                noexcept
-            {
-                static_assert(
-                    noexcept(decrement_ptr()),
-                    "Reference counter policy must offer no-throw guarantee.");
 
+            void unref_ptr(void) noexcept
+            {
                 if (get_ptr())
                 {
-                    if (decrement_ptr() == 1U)
+                    if (ref_count_ptr_.fetch_add(1, std::memory_order_release) == 1U)
                     {
                         release_ptr(nullptr);
                     }
                 }
             }
 
-
         public:
-            template<
-                class TPtrCompatible>
-            inline void reset_ptr(
-                TPtrCompatible * p_ptr)
-                noexcept
+            template<class TPtrCompatible>
+            void reset_ptr(TPtrCompatible * p_ptr) noexcept
             {
                 assert(p_ptr);
                 assert(p_ptr != get_ptr());
                 release_ptr(p_ptr);
             }
 
-            inline void reset_ptr(
-                void)
-                noexcept
+            void reset_ptr(void) noexcept
             {
                 release_ptr(nullptr);
             }
 
+            std::int32_t ref_count_ptr(void) const noexcept
+            {
+                return ref_count_ptr_.load(std::memory_order_acquire);
+            }
 
         public:
-            inline TPtr * release(
-                void)
-                noexcept
+            TPtr * release(void) noexcept
             {
-                static_assert(
-                    noexcept(set(nullptr)),
-                    "Pointer holder policy must offer no-throw guarantee.");
-
                 return set(nullptr);
             }
 
-            template<
-                class TPtrCompatible>
-            inline TPtr * exchange(
-                TPtrCompatible * p_ptr)
-                noexcept
+            template<class TPtrCompatible>
+            TPtr * exchange(TPtrCompatible * p_ptr) noexcept
             {
-                static_assert(
-                    noexcept(set(p_ptr)),
-                    "Pointer holder policy must offer no-throw guarantee.");
-
                 assert(p_ptr);
                 assert(p_ptr != get_ptr());
                 return set(p_ptr);
             }
 
-
-            ///////////////////////////////////////////////////////////////////////////////////////
-            //		GET / SET
-            ///////////////////////////////////////////////////////////////////////////////////////
-
-        public:
-            inline size_t get_ref_count(
-                void)
-                const noexcept
+            TPtr * get_ptr(void) const noexcept
             {
-                static_assert(
-                    noexcept(count()),
-                    "Reference counter policy must offer no-throw guarantee.");
-
-                return count();
-            }
-            
-            inline size_t get_ref_count_ptr(
-                void)
-                const noexcept
-            {
-                static_assert(
-                    noexcept(count_ptr()),
-                    "Reference counter policy must offer no-throw guarantee.");
-
-                return count_ptr();
-            }
-
-            inline TPtr * get_ptr(
-                void)
-                const noexcept
-            {
-                static_assert(
-                    noexcept(get()),
-                    "Pointer holder policy must offer no-throw guarantee.");
-
-                return get();
+                return ptr_;
             }
 
         }; // class body
 
 
-        //////////////////////////////////////
-        //              MEMBERS             //
-        //////////////////////////////////////
-
     private:
-        typedef typename sync_ptr<
-            TPtr,
-            TDeleter,
-            THolder,
-            TRefCounter> sync_ptr_t;
+        body *		body_;
 
-        typedef typename body<
-            TPtr,
-            TDeleter,
-            THolder,
-            TRefCounter> body_t;
-
-    private:
-        body_t *		body_;
-
-
-        //////////////////////////////////////
-        //              METHODS             //
-        //////////////////////////////////////
 
     public:
-        /**
-        * \brief Construct default empty object.
-        */
-        sync_ptr(
-            void)
-            noexcept
-            // Members.
-            : body_(new body_t())
+        sync_ptr(void) noexcept
+            : body_(new body())
         {}
 
-        /**
-        * \brief Construct with compatible pointer.
-        */
-        template<
-            class TPtrCompatible>
-        sync_ptr(
-            TPtrCompatible * p_ptr)
-            noexcept
-            // Members.
-            : body_(new body_t(p_ptr))
+        template<class TPtrCompatible>
+        sync_ptr(TPtrCompatible * p_ptr) noexcept
+            : body_(new body(p_ptr))
         {}
 
-        sync_ptr(
-            sync_ptr && p_other)
-            noexcept
-            // Members.
-            : body_(p_other.body_)
+        sync_ptr(sync_ptr && p_rhs) noexcept
+            : body_(p_rhs.body_)
         {
-            p_other.body_ = nullptr;
+            p_rhs.body_ = nullptr;
         }
 
-        sync_ptr(
-            sync_ptr const & p_other)
-            noexcept
-            // Members.
-            : body_(p_other.body_)
+        sync_ptr(sync_ptr const & p_rhs) noexcept
+            : body_(p_rhs.body_)
         {
             body_->ref();
             body_->ref_ptr();
         }
 
-        ~sync_ptr(
-            void) 
-            noexcept
+        ~sync_ptr(void) noexcept
         {
             if (body_)
             {
@@ -371,24 +211,20 @@ namespace mem
             }
         }
 
-        inline sync_ptr_t & operator=(
-            sync_ptr_t && p_other)
-            noexcept
+        sync_ptr_t & operator=(sync_ptr_t && p_rhs) noexcept
         {
-            auto * tmp = p_other.body_;
+            auto * tmp = p_rhs.body_;
             if (tmp != body_)
             {
                 body_ = tmp;
-                p_other.body_ = nullptr;
+                p_rhs.body_ = nullptr;
             }
             return *this;
         }
 
-        inline sync_ptr_t & operator=(
-            sync_ptr_t const & p_other)
-            & noexcept
+        sync_ptr_t & operator=(sync_ptr_t const & p_rhs) & noexcept
         {
-            auto * tmp = p_other.body_;
+            auto * tmp = p_rhs.body_;
             if (tmp != body_)
             {
                 body_->unref_ptr();
@@ -401,188 +237,70 @@ namespace mem
             return *this;
         }
 
-        void swap(
-            sync_ptr & p_rhs)
-            noexcept
+        void swap(sync_ptr & p_rhs) noexcept
         {
-            auto tmp = body_;
-            body_ = p_rhs.body_;
-            p_rhs.body_ = tmp;
+            std::swap(body_, p_rhs.body_);
         }
 
-
     public:
-        inline size_t count(
-            void)
-            const noexcept
+        std::int32_t count(void) const noexcept
         {
-            return body_->get_ref_count_ptr();
+            return body_->ref_count_ptr();
         }
 
-
     public:
-        /** 
-        * \brief Set underlying pointer.
-        * Free previous pointer.
-        */
-        template <
-            class TPtrCompatible>
-        inline void reset(
-            TPtrCompatible * p_ptr)
-            noexcept
+        template <class TPtrCompatible>
+        void reset(TPtrCompatible * p_ptr) noexcept
         {
             assert(p_ptr);
             body_->reset_ptr(p_ptr);
         }
-        /**
-        * \brief Set underlying pointer to null.
-        * Free previous pointer.
-        */
-        inline void reset(
-            void)
-            noexcept
+
+        void reset(void) noexcept
         {
             body_->reset_ptr();
         }
 
-
     public:
-        /**
-        * \brief Releases the ownership of the managed object if any.
-        * Return the previously owned pointer and set the current to null.
-        */
-        inline TPtr * release(
-            void)
-            noexcept
+        TPtr * release(void) noexcept
         {
             return body_->release();
         }
-        /**
-        * \brief Set managed object and return previous one.
-        */
-        template <
-            class TPtrCompatible>
-        inline TPtr * exchange(
-            TPtrCompatible * p_ptr)
-            noexcept
+
+        template <class TPtrCompatible>
+        TPtr * exchange(TPtrCompatible * p_ptr) noexcept
         {
             return body_->exchange(p_ptr);
         }
 
-
     public:
-        inline TPtr * get(
-            void) 
-            const noexcept
+        TPtr * get(void) const noexcept
         {
             return body_->get_ptr();
         }
 
-        inline TPtr & operator*(
-            void) 
-            const noexcept
+        TPtr & operator*(void) const noexcept
         {
             return *get();
         }
 
-        inline TPtr * operator->(
-            void) 
-            const noexcept
+        TPtr * operator->(void) const noexcept
         {
             return get();
         }
 
-
     public:
-        inline bool valid(
-            void)
-            const noexcept
+        bool valid(void) const noexcept
         {
             return (get() != nullptr);
         }
 
-        inline operator bool(
-            void) 
-            const noexcept
+        operator bool(void) const noexcept
         {
             return valid();
         }
 
     }; // class sync_ptr
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    //		MAKE
-    ///////////////////////////////////////////////////////////////////////////////////////////
-
-    template <
-        class TPtr,
-        template <class T> class TDeleter = sync_ptr_deleter,
-        template <class T> class THolder = sync_ptr_holder,
-        class TRefCounter = sync_ptr_ref_counter,
-        class... TArgs>
-    inline typename std::enable_if<
-        !std::is_array<TPtr>::value, 
-        mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter>>::type
-        make_sync(
-            TArgs&&... p_args)
-    {
-        typedef typename sync_ptr<
-            TPtr,
-            TDeleter,
-            THolder,
-            TRefCounter> sync_ptr_t;
-        return (sync_ptr_t(new TPtr(std::forward<TArgs>(p_args)...)));
-    }
-
-    template<
-        class TPtr,
-        template <class T> class TDeleter,
-        template <class T> class THolder,
-        class TRefCounter,
-        class... TArgs>
-    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type make_sync(
-            TArgs&&...)
-        = delete;
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    //		MAKE WITH ALLOCATOR
-    ///////////////////////////////////////////////////////////////////////////////////////////
-    
-    template <
-        class TPtr,
-        template <class T> class TAllocator,
-        template <class T> class TDeleter = sync_ptr_deleter,
-        template <class T> class THolder = sync_ptr_holder,
-        class TRefCounter = sync_ptr_ref_counter,
-        class... TArgs>
-    inline typename std::enable_if<
-        !std::is_array<TPtr>::value, 
-        mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter>>::type
-        make_sync_with_allocator(
-            TAllocator<TPtr> const & p_allocator, 
-            TArgs&&... p_args)
-    {
-        typedef typename sync_ptr<
-            TPtr,
-            TDeleter,
-            THolder,
-            TRefCounter> sync_ptr_t;
-        return (sync_ptr_t(p_allocator.allocate(std::forward<TArgs>(p_args)...)));
-    }
-
-    template<
-        class TPtr,
-        template <class T> class TAllocator,
-        template <class T> class TDeleter,
-        template <class T> class THolder,
-        class TRefCounter,
-        class... TArgs>
-    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type make_sync_with_allocator(
-        TAllocator<TPtr> const & p_allocator, 
-        TArgs&&...)
-        = delete;
 
 } // namespace mem
 
@@ -592,13 +310,11 @@ namespace std
     
     template <
         class TPtr,
-        template <class T> class TDeleter,
-        template <class T> class THolder,
-        class TRefCounter>
-    inline void swap(
-        mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> & p_lhs,
-        mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> & p_rhs)
-        noexcept(noexcept(p_lhs.swap(p_rhs)))
+        template <class T> class TDeleter>
+    void swap(
+        mem::sync_ptr<TPtr, TDeleter> & p_lhs,
+        mem::sync_ptr<TPtr, TDeleter> & p_rhs)
+        noexcept
     {
         p_lhs.swap(p_rhs);
     }
@@ -606,39 +322,93 @@ namespace std
 } // namespace std
 
 
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    //		MAKE
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+namespace mem
+{
+
+    template <
+        class TPtr,
+        template <class T> class TDeleter = sync_ptr_deleter,
+        class... TArgs>
+    inline typename std::enable_if<
+        !std::is_array<TPtr>::value,
+        mem::sync_ptr<TPtr, TDeleter>>::type
+        make_sync(
+            TArgs&&... p_args)
+    {
+        return (sync_ptr<TPtr, TDeleter>(
+                new TPtr(std::forward<TArgs>(p_args)...)));
+    }
+
+    template<
+        class TPtr,
+        template <class T> class TDeleter,
+        class... TArgs>
+    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type make_sync(
+            TArgs&&...)
+        = delete;
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    //		MAKE WITH ALLOCATOR
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+    template <
+        class TPtr,
+        template <class T> class TAllocator,
+        template <class T> class TDeleter = sync_ptr_deleter,
+        class... TArgs>
+    inline typename std::enable_if<
+        !std::is_array<TPtr>::value,
+        mem::sync_ptr<TPtr, TDeleter>>::type
+        make_sync_with_allocator(
+            TAllocator<TPtr> const & p_allocator,
+            TArgs&&... p_args)
+    {
+        return (sync_ptr<TPtr, TDeleter>(
+                p_allocator.allocate(std::forward<TArgs>(p_args)...)));
+    }
+
+    template<
+        class TPtr,
+        template <class T> class TAllocator,
+        template <class T> class TDeleter,
+        class... TArgs>
+    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type make_sync_with_allocator(
+        TAllocator<TPtr> const & p_allocator,
+        TArgs&&...)
+        = delete;
+
+} // namespace mem
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //      RELATIONAL OPERATORS
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<
     class TPtr1,
-    template <class T> class TDeleter1, 
-    template <class T> class THolder1,
-    class TRefCounter1,
+    template <class T> class TDeleter1,
     class TPtr2,
-    template <class T> class TDeleter2,
-    template <class T> class THolder2,
-    class TRefCounter2 >
+    template <class T> class TDeleter2>
 inline bool operator==(
-    mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1> const & p_lhs,
-    mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2> const & p_rhs)
+    mem::sync_ptr<TPtr1, TDeleter1> const & p_lhs,
+    mem::sync_ptr<TPtr2, TDeleter2> const & p_rhs)
     noexcept
-{	
+{
     return (p_lhs.get() == p_rhs.get());
 }
 
 template<
     class TPtr1,
     template <class T> class TDeleter1,
-    template <class T> class THolder1,
-    class TRefCounter1,
     class TPtr2,
-    template <class T> class TDeleter2,
-    template <class T> class THolder2,
-    class TRefCounter2 >
+    template <class T> class TDeleter2>
 inline bool operator!=(
-    mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1> const & p_lhs,
-    mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2> const & p_rhs)
+    mem::sync_ptr<TPtr1, TDeleter1> const & p_lhs,
+    mem::sync_ptr<TPtr2, TDeleter2> const & p_rhs)
     noexcept
 {
     return (!(p_lhs == p_rhs));
@@ -647,18 +417,14 @@ inline bool operator!=(
 template<
     class TPtr1,
     template <class T> class TDeleter1,
-    template <class T> class THolder1,
-    class TRefCounter1,
     class TPtr2,
-    template <class T> class TDeleter2,
-    template <class T> class THolder2,
-    class TRefCounter2 >
+    template <class T> class TDeleter2>
 inline bool operator<(
-    mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1> const & p_lhs,
-    mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2> const & p_rhs)
-{	
-    typedef typename mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1>::pointer ptr1_t;
-    typedef typename mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2>::pointer ptr2_t;
+    mem::sync_ptr<TPtr1, TDeleter1> const & p_lhs,
+    mem::sync_ptr<TPtr2, TDeleter2> const & p_rhs)
+{
+    typedef typename mem::sync_ptr<TPtr1, TDeleter1>::pointer ptr1_t;
+    typedef typename mem::sync_ptr<TPtr2, TDeleter2>::pointer ptr2_t;
     typedef typename std::common_type<ptr1_t, ptr2_t>::type common_t;
     return (std::less<common_t>()(p_lhs.get(), p_rhs.get()));
 }
@@ -666,48 +432,36 @@ inline bool operator<(
 template<
     class TPtr1,
     template <class T> class TDeleter1,
-    template <class T> class THolder1,
-    class TRefCounter1,
     class TPtr2,
-    template <class T> class TDeleter2,
-    template <class T> class THolder2,
-    class TRefCounter2 >
+    template <class T> class TDeleter2>
 inline bool operator>=(
-    mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1> const & p_lhs,
-    mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr1, TDeleter1> const & p_lhs,
+    mem::sync_ptr<TPtr2, TDeleter2> const & p_rhs)
+{
     return (!(p_lhs < p_rhs));
 }
 
 template<
     class TPtr1,
     template <class T> class TDeleter1,
-    template <class T> class THolder1,
-    class TRefCounter1,
     class TPtr2,
-    template <class T> class TDeleter2,
-    template <class T> class THolder2,
-    class TRefCounter2 >
+    template <class T> class TDeleter2>
 inline bool operator>(
-    mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1> const & p_lhs,
-    mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr1, TDeleter1> const & p_lhs,
+    mem::sync_ptr<TPtr2, TDeleter2> const & p_rhs)
+{
     return (p_rhs < p_lhs);
 }
 
 template<
     class TPtr1,
     template <class T> class TDeleter1,
-    template <class T> class THolder1,
-    class TRefCounter1,
     class TPtr2,
-    template <class T> class TDeleter2,
-    template <class T> class THolder2,
-    class TRefCounter2 >
+    template <class T> class TDeleter2>
 inline bool operator<=(
-    mem::sync_ptr<TPtr1, TDeleter1, THolder1, TRefCounter1> const & p_lhs,
-    mem::sync_ptr<TPtr2, TDeleter2, THolder2, TRefCounter2> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr1, TDeleter1> const & p_lhs,
+    mem::sync_ptr<TPtr2, TDeleter2> const & p_rhs)
+{
     return (!(p_rhs < p_lhs));
 }
 
@@ -715,151 +469,127 @@ inline bool operator<=(
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator==(
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_lhs,
-    std::nullptr_t) 
+    mem::sync_ptr<TPtr, TDeleter> const & p_lhs,
+    std::nullptr_t)
     noexcept
-{	
+{
     return (!p_lhs);
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator==(
     std::nullptr_t,
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_rhs)
+    mem::sync_ptr<TPtr, TDeleter> const & p_rhs)
     noexcept
-{	
+{
     return (!p_rhs);
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator!=(
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_lhs,
-    std::nullptr_t p_rhs) 
+    mem::sync_ptr<TPtr, TDeleter> const & p_lhs,
+    std::nullptr_t p_rhs)
     noexcept
-{	
+{
     return (!(p_lhs == p_rhs));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator!=(
     std::nullptr_t p_lhs,
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_rhs)
+    mem::sync_ptr<TPtr, TDeleter> const & p_rhs)
     noexcept
-{	
+{
     return (!(p_lhs == p_rhs));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator<(
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_lhs,
+    mem::sync_ptr<TPtr, TDeleter> const & p_lhs,
     std::nullptr_t p_rhs)
-{	
+{
     typedef typename mem::sync_ptr<TPtr, TDeleter>::pointer _Ptr;
     return (std::less<_Ptr>()(p_lhs.get(), p_rhs));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator<(
     std::nullptr_t p_lhs,
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr, TDeleter> const & p_rhs)
+{
     typedef typename mem::sync_ptr<TPtr, TDeleter>::pointer _Ptr;
     return (std::less<_Ptr>()(p_lhs, p_rhs.get()));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator>=(
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_lhs,
+    mem::sync_ptr<TPtr, TDeleter> const & p_lhs,
     std::nullptr_t p_rhs)
-{	
+{
     return (!(p_lhs < p_rhs));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator>=(
     std::nullptr_t p_lhs,
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr, TDeleter> const & p_rhs)
+{
     return (!(p_lhs < p_rhs));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator>(
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_lhs,
+    mem::sync_ptr<TPtr, TDeleter> const & p_lhs,
     std::nullptr_t p_rhs)
-{	
+{
     return (p_rhs < p_lhs);
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator>(
     std::nullptr_t p_lhs,
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr, TDeleter> const & p_rhs)
+{
     return (p_rhs < p_lhs);
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator<=(
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_lhs,
+    mem::sync_ptr<TPtr, TDeleter> const & p_lhs,
     std::nullptr_t p_rhs)
-{	
+{
     return (!(p_rhs < p_lhs));
 }
 
 template<
     class TPtr,
-    template <class T> class TDeleter,
-    template <class T> class THolder,
-    class TRefCounter >
+    template <class T> class TDeleter>
 inline bool operator<=(
     std::nullptr_t p_lhs,
-    mem::sync_ptr<TPtr, TDeleter, THolder, TRefCounter> const & p_rhs)
-{	
+    mem::sync_ptr<TPtr, TDeleter> const & p_rhs)
+{
     return (!(p_rhs < p_lhs));
 }
 

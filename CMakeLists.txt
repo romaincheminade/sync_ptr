@@ -3,12 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project( sync_ptr )
 
-# Concurrency.
-set(SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/cc/sync_ptr.h
-    )
-source_group( "Concurrency" FILES ${SRCS} )
-set( SOURCE_FILES ${SOURCE_FILES} ${SRCS} )
+include( ${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectFlags.cmake )
 
 # Memory.
 set(SRCS
@@ -20,8 +15,6 @@ set( SOURCE_FILES ${SOURCE_FILES} ${SRCS} )
 
 # Tests.
 set(SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/cc_sync_ptr.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/cc_sync_ptr.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_sync_ptr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_sync_ptr.h
     )

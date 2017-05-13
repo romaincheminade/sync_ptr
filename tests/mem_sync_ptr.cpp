@@ -3,6 +3,7 @@
 #include "mem_sync_ptr.h"
 
 #include <cassert>
+#include <memory>
 
 
 void tests::mem_sync_ptr_synchro(void)
