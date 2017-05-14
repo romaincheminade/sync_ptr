@@ -32,38 +32,23 @@ namespace mem
     {
 
     private:
-        using linked_ptr_t = linked_ptr<TPtr, TDeleter>;
-        using sync_ptr_t = sync_ptr<TPtr, TDeleter>;
+        using linked_ptr_t  = linked_ptr<TPtr, TDeleter>;
+        using sync_ptr_t    = sync_ptr<TPtr, TDeleter>;
+        using body_t        = typename sync_ptr_t::body;
 
     private:
-        sync_ptr_t::body *		body_;
+        body_t *		body_;
 
 
     public:
         linked_ptr(void) noexcept
-            : body_(new sync_ptr_t::body())
+            : body_{ new body_t }
         {}
 
         linked_ptr(linked_ptr_t && p_rhs) noexcept
-            : body_(p_rhs.body_)
+            : body_{ p_rhs.body_ }
         {
             p_rhs.body_ = nullptr;
-        }
-
-        linked_ptr(linked_ptr_t const & p_rhs) noexcept
-            : body_(p_rhs.body_)
-        {
-            body_->ref();
-            body_->ref_ptr();
-        }
-
-        ~linked_ptr(void) noexcept
-        {
-            if (body_)
-            {
-                body_->unref_ptr();
-                body_->unref();
-            }
         }
 
         linked_ptr_t & operator=(linked_ptr_t && p_rhs) noexcept
@@ -73,19 +58,32 @@ namespace mem
             return *this;
         }
 
-        linked_ptr_t & operator=(linked_ptr_t const & p_rhs) & noexcept
+        linked_ptr(linked_ptr_t const & p_rhs) noexcept = delete;
+        linked_ptr(sync_ptr_t const & p_rhs) noexcept
+            : body_{ p_rhs.body_ }
+        {
+            body_->ref();
+        }
+
+        linked_ptr_t & operator=(linked_ptr_t const & p_rhs) & noexcept = delete;
+        linked_ptr_t & operator=(sync_ptr_t const & p_rhs) & noexcept
         {
             auto * tmp = p_rhs.body_;
             if (tmp != body_)
             {
-                body_->unref_ptr();
                 body_->unref();
-
                 body_ = tmp;
                 body_->ref();
-                body_->ref_ptr();
             }
             return *this;
+        }
+
+        ~linked_ptr(void) noexcept
+        {
+            if (body_)
+            {
+                body_->unref();
+            }
         }
 
         void swap(linked_ptr_t & p_rhs) noexcept
@@ -96,7 +94,7 @@ namespace mem
     public:
         TPtr * get(void) const noexcept
         {
-            return body_->get_ptr();
+            return body_->get();
         }
 
         TPtr * operator->(void) const noexcept
@@ -122,7 +120,7 @@ namespace mem
 
         std::int32_t count(void) const noexcept
         {
-            return body_->ref_count_ptr();
+            return body_->ref_count();
         }
 
     }; // class linked_ptr

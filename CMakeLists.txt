@@ -16,6 +16,8 @@ set( SOURCE_FILES ${SOURCE_FILES} ${SRCS} )
 
 # Tests.
 set(SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_linked_ptr.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_linked_ptr.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_sync_ptr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_sync_ptr.h
     )

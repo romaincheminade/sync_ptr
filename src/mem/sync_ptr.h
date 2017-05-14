@@ -158,22 +158,22 @@ namespace mem
 
     public:
         sync_ptr(void) noexcept
-            : body_(new body())
+            : body_{ new body }
         {}
 
         template<class TPtrCompatible>
         sync_ptr(TPtrCompatible * p_ptr) noexcept
-            : body_(new body(p_ptr))
+            : body_{ new body{p_ptr} }
         {}
 
         sync_ptr(sync_ptr_t && p_rhs) noexcept
-            : body_(p_rhs.body_)
+            : body_{ p_rhs.body_ }
         {
             p_rhs.body_ = nullptr;
         }
 
         sync_ptr(sync_ptr_t const & p_rhs) noexcept
-            : body_(p_rhs.body_)
+            : body_{ p_rhs.body_ }
         {
             body_->ref();
         }
