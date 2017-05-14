@@ -41,21 +41,16 @@ namespace mem
 
     public:
         linked_ptr(void) noexcept
-            : body_(new body())
+            : body_(new sync_ptr_t::body())
         {}
 
-        template<class TPtrCompatible>
-        linked_ptr(TPtrCompatible * p_ptr) noexcept
-            : body_(new body(p_ptr))
-        {}
-
-        linked_ptr(linked_ptr && p_rhs) noexcept
+        linked_ptr(linked_ptr_t && p_rhs) noexcept
             : body_(p_rhs.body_)
         {
             p_rhs.body_ = nullptr;
         }
 
-        linked_ptr(linked_ptr const & p_rhs) noexcept
+        linked_ptr(linked_ptr_t const & p_rhs) noexcept
             : body_(p_rhs.body_)
         {
             body_->ref();

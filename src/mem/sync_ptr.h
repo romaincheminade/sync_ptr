@@ -45,20 +45,17 @@ namespace mem
         private:
             TPtr *                           ptr_;
             std::atomic<std::int32_t>        ref_count_;
-            std::atomic<std::int32_t>        ref_count_ptr_;
 
         public:
             body(void) noexcept
                 : ptr_{ nullptr }
-                , ref_count_{ 1U }
-                , ref_count_ptr_{ 0 }
+                , ref_count_{ 1 }
             {}
             
             template<class TPtrCompatible>
             body(TPtrCompatible * p_ptr) noexcept
                 : ptr_{ p_ptr }
-                , ref_count_(1)
-                , ref_count_ptr_(1)
+                , ref_count_{ 1 }
             {
                 assert(p_ptr);
             }
@@ -73,8 +70,22 @@ namespace mem
             void operator=(body && p_arg) = delete;
 
         private:
+            void release_ptr(TPtr * p_ptr) noexcept
+            {
+                static_assert(
+                    noexcept(this->deallocate(p_ptr)),
+                    "Deleter policy must offer no-throw guarantee.");
+
+                auto p = set(p_ptr);
+                if (p)
+                {
+                    this->deallocate(p);
+                }
+            }
+
             void release_this(void) noexcept
             {
+                release_ptr(nullptr);
                 delete this;
             }
 
@@ -86,28 +97,15 @@ namespace mem
                 return p;
             }
 
-            void release_ptr(TPtr * p_ptr) noexcept
-            {
-                static_assert(
-                    noexcept(this->deallocate(p_ptr)),
-                    "Deleter policy must offer no-throw guarantee.");
-
-                auto p = set(p_ptr);                    
-                if (p)
-                {
-                    this->deallocate(p);
-                }
-            }
-
         public:
             void ref(void)  noexcept
             {
-                ref_count_.fetch_add(1U, std::memory_order_release);
+                ref_count_.fetch_add(1, std::memory_order_release);
             }
 
             void unref(void) noexcept
             {
-                if (ref_count_.fetch_sub(1, std::memory_order_release) == 1U)
+                if (ref_count_.fetch_sub(1, std::memory_order_release) == 1)
                 {
                     release_this();
                 }
@@ -119,42 +117,17 @@ namespace mem
             }
 
         public:
-            void ref_ptr(void) noexcept
-            {
-                if (get_ptr())
-                {
-                    ref_count_ptr_.fetch_add(1, std::memory_order_release);
-                }
-            }
-
-            void unref_ptr(void) noexcept
-            {
-                if (get_ptr())
-                {
-                    if (ref_count_ptr_.fetch_add(1, std::memory_order_release) == 1U)
-                    {
-                        release_ptr(nullptr);
-                    }
-                }
-            }
-
-        public:
             template<class TPtrCompatible>
-            void reset_ptr(TPtrCompatible * p_ptr) noexcept
+            void reset(TPtrCompatible * p_ptr) noexcept
             {
                 assert(p_ptr);
-                assert(p_ptr != get_ptr());
+                assert(p_ptr != get());
                 release_ptr(p_ptr);
             }
 
-            void reset_ptr(void) noexcept
+            void reset(void) noexcept
             {
                 release_ptr(nullptr);
-            }
-
-            std::int32_t ref_count_ptr(void) const noexcept
-            {
-                return ref_count_ptr_.load(std::memory_order_acquire);
             }
 
         public:
@@ -167,11 +140,11 @@ namespace mem
             TPtr * exchange(TPtrCompatible * p_ptr) noexcept
             {
                 assert(p_ptr);
-                assert(p_ptr != get_ptr());
+                assert(p_ptr != get());
                 return set(p_ptr);
             }
 
-            TPtr * get_ptr(void) const noexcept
+            TPtr * get(void) const noexcept
             {
                 return ptr_;
             }
@@ -193,24 +166,22 @@ namespace mem
             : body_(new body(p_ptr))
         {}
 
-        sync_ptr(sync_ptr && p_rhs) noexcept
+        sync_ptr(sync_ptr_t && p_rhs) noexcept
             : body_(p_rhs.body_)
         {
             p_rhs.body_ = nullptr;
         }
 
-        sync_ptr(sync_ptr const & p_rhs) noexcept
+        sync_ptr(sync_ptr_t const & p_rhs) noexcept
             : body_(p_rhs.body_)
         {
             body_->ref();
-            body_->ref_ptr();
         }
 
         ~sync_ptr(void) noexcept
         {
             if (body_)
             {
-                body_->unref_ptr();
                 body_->unref();
             }
         }
@@ -227,12 +198,9 @@ namespace mem
             auto * tmp = p_rhs.body_;
             if (tmp != body_)
             {
-                body_->unref_ptr();
                 body_->unref();
-
                 body_ = tmp;
                 body_->ref();
-                body_->ref_ptr();
             }
             return *this;
         }
@@ -247,12 +215,12 @@ namespace mem
         void reset(TPtrCompatible * p_ptr) noexcept
         {
             assert(p_ptr);
-            body_->reset_ptr(p_ptr);
+            body_->reset(p_ptr);
         }
 
         void reset(void) noexcept
         {
-            body_->reset_ptr();
+            body_->reset();
         }
 
         TPtr * release(void) noexcept
@@ -269,7 +237,7 @@ namespace mem
     public:
         TPtr * get(void) const noexcept
         {
-            return body_->get_ptr();
+            return body_->get();
         }
 
         TPtr * operator->(void) const noexcept
@@ -295,7 +263,7 @@ namespace mem
 
         std::int32_t count(void) const noexcept
         {
-            return body_->ref_count_ptr();
+            return body_->ref_count();
         }
 
     }; // class sync_ptr
