@@ -21,10 +21,6 @@
 namespace mem
 {
 
-    template<class TPtr>
-    using sync_ptr_deleter      = default_deleter<TPtr>;
-
-
     template <
         class TPtr,
         template <class T> class TDeleter = sync_ptr_deleter>
