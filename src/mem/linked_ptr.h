@@ -119,6 +119,11 @@ namespace mem
             return body_->ref_count();
         }
 
+        bool orphan(void) const noexcept
+        {
+            return (body_->ref_count() == 1);
+        }
+
     }; // class linked_ptr
 
 } // namespace mem

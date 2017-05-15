@@ -23,3 +23,23 @@ void tests::mem_linked_ptr_synchro(void)
     test_assert(obj1 == obj2);
     test_assert(obj1.count() == obj2.count());
 }
+
+void tests::mem_linked_ptr_orphan(void)
+{
+    class Obj
+    {};
+
+    mem::linked_ptr<Obj> linked;
+    {
+        mem::sync_ptr<Obj> synced = mem::make_sync<Obj>();
+        
+        linked = synced;
+
+        test_assert(linked);
+        test_assert(synced);
+
+        test_assert(linked == synced);
+        test_assert(linked.count() == synced.count());
+    }
+    test_assert(linked.orphan());
+}

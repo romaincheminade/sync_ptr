@@ -7,6 +7,7 @@ int main(
     try
 {
     tests::mem_linked_ptr_synchro();
+    tests::mem_linked_ptr_orphan();
 
     return 0;
 }
