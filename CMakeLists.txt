@@ -3,32 +3,31 @@ cmake_minimum_required(VERSION 3.5)
 
 project( sync_ptr )
 
-include( ${CMAKE_CURRENT_SOURCE_DIR}/CMake/ProjectFlags.cmake )
+set( BASE_SOURCE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+include( ${BASE_SOURCE_PATH}/CMake/ProjectFlags.cmake )
 
-# Memory.
+# Source Files.
+#################################################
 set(SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/linked_ptr.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/sync_ptr.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/sync_ptr_policy.h
+    ${BASE_SOURCE_PATH}/src/mem/linked_ptr.h
+    ${BASE_SOURCE_PATH}/src/mem/sync_ptr.h
+    ${BASE_SOURCE_PATH}/src/mem/sync_ptr_policy.h
     )
 source_group( "Memory" FILES ${SRCS} )
-set( SOURCE_FILES ${SOURCE_FILES} ${SRCS} )
+set( SRC_FILES ${SRC_FILES} ${SRCS} )
+
+
+# Create Library.
+#################################################
+add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
+set_target_properties( ${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+
 
 # Tests.
-set(SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_linked_ptr.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_linked_ptr.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_sync_ptr.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/mem_sync_ptr.h
-    )
-source_group( "Tests" FILES ${SRCS} )
-set( SOURCE_FILES ${SOURCE_FILES} ${SRCS} )
+#################################################
+option( BUILD_TESTS "Add test project(s) to the build." ON )
+if( BUILD_TESTS )
+	enable_testing()
+	add_subdirectory( test )
 
-# Main.
-set(SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-set( SOURCE_FILES ${SOURCE_FILES} ${SRCS} )
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-add_executable( sync_ptr ${SOURCE_FILES} )
+endif()

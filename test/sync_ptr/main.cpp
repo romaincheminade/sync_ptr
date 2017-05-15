@@ -1,14 +1,11 @@
 
-#include "tests/mem_linked_ptr.h"
-#include "tests/mem_sync_ptr.h"
+#include "mem_sync_ptr.h"
 
 
 int main(
-    int argc, char *argv[])
+    int /*argc*/, char ** /*argv*/)
     try
 {
-    tests::mem_linked_ptr_synchro();
-
     tests::mem_sync_ptr_synchro();
     tests::mem_sync_ptr_release();
     tests::mem_sync_ptr_exchange();
