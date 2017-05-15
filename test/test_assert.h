@@ -1,12 +1,12 @@
 
 #pragma once
-#ifndef __CC_TEST_ASSERT_H__
-#define __CC_TEST_ASSERT_H__
+#ifndef __TEST_ASSERT_H__
+#define __TEST_ASSERT_H__
 
 #include <cstdlib>
 
 
-namespace cc
+namespace 
 {
 
 	template<class TExpression>
@@ -18,6 +18,6 @@ namespace cc
 		}
 	}
 
-} // namespace cc
+} // namespace 
 
-#endif // __CC_TEST_ASSERT_H__
+#endif // __TEST_ASSERT_H__

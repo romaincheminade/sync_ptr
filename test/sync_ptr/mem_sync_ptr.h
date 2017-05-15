@@ -2,10 +2,6 @@
 #ifndef __TESTS_MEM_SYNC_PTR_H__
 #define __TESTS_MEM_SYNC_PTR_H__
 
-#ifndef __MEMORY_SYNC_PTR_H__
-#include "mem/sync_ptr.h"
-#endif
-
 
 namespace tests
 {
