@@ -1,6 +1,6 @@
 
-#ifndef __MEMORY_SYNC_PTR_H__
-#define __MEMORY_SYNC_PTR_H__
+#ifndef __MEM_SYNC_PTR_H__
+#define __MEM_SYNC_PTR_H__
 
 
 #include <atomic>
@@ -9,8 +9,8 @@
 #include <functional>
 #include <utility>
 
-#ifndef __MEMORY_SYNC_PTR_POLICY_H__
-#include "mem/sync_ptr_policy.h"
+#ifndef __MEM_ALLOCATION_POLICY_H__
+#include "mem/allocation_policy.h"
 #endif
 
 
@@ -313,9 +313,10 @@ namespace mem
         class TPtr,
         template <class T> class TDeleter,
         class... TArgs>
-    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type make_sync(
+    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
+        make_sync(
             TArgs&&...)
-        = delete;
+            = delete;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -330,7 +331,7 @@ namespace mem
     inline typename std::enable_if<
         !std::is_array<TPtr>::value,
         mem::sync_ptr<TPtr, TDeleter>>::type
-        make_sync_with_allocator(
+        allocate_sync(
             TAllocator<TPtr> const & p_allocator,
             TArgs&&... p_args)
     {
@@ -343,10 +344,11 @@ namespace mem
         template <class T> class TAllocator,
         template <class T> class TDeleter,
         class... TArgs>
-    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type make_sync_with_allocator(
-        TAllocator<TPtr> const & p_allocator,
-        TArgs&&...)
-        = delete;
+    typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
+        allocate_sync(
+            TAllocator<TPtr> const & p_allocator,
+            TArgs&&...)
+            = delete;
 
 } // namespace mem
 
@@ -559,4 +561,4 @@ inline bool operator<=(
     return (!(p_rhs < p_lhs));
 }
 
-#endif // __MEMORY_SYNC_PTR_H__
+#endif // __MEM_SYNC_PTR_H__

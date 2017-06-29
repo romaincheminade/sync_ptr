@@ -8,13 +8,8 @@ include( ${BASE_SOURCE_PATH}/CMake/ProjectFlags.cmake )
 
 # Source Files.
 #################################################
-set(SRCS
-    ${BASE_SOURCE_PATH}/src/mem/linked_ptr.h
-    ${BASE_SOURCE_PATH}/src/mem/sync_ptr.h
-    ${BASE_SOURCE_PATH}/src/mem/sync_ptr_policy.h
-    )
-source_group( "Memory" FILES ${SRCS} )
-set( SRC_FILES ${SRC_FILES} ${SRCS} )
+set( SRC_FILES )
+include( ${BASE_SOURCE_PATH}/mem/CMakeLists.txt )
 
 
 # Create Library.

@@ -110,7 +110,7 @@ void tests::mem_sync_ptr_allocator(void)
         test_allocator<Obj> allocator_;
 
         auto obj(
-            mem::make_sync_with_allocator<
+            mem::allocate_sync<
                 Obj> (
                     allocator_));
     }

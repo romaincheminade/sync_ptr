@@ -1,6 +1,6 @@
 
-#ifndef __MEMORY_LINKED_PTR_H__
-#define __MEMORY_LINKED_PTR_H__
+#ifndef __MEM_LINKED_PTR_H__
+#define __MEM_LINKED_PTR_H__
 
 
 #include <atomic>
@@ -9,11 +9,11 @@
 #include <functional>
 #include <utility>
 
-#ifndef __MEMORY_SYNC_PTR_POLICY_H__
-#include "mem/sync_ptr_policy.h"
+#ifndef __MEM_ALLOCATION_POLICY_H__
+#include "mem/allocation_policy.h"
 #endif
 
-#ifndef __MEMORY_SYNC_PTR_H__
+#ifndef __MEM_SYNC_PTR_H__
 #include "mem/sync_ptr.h"
 #endif
 
@@ -145,4 +145,4 @@ namespace std
 
 } // namespace std
 
-#endif // __MEMORY_LINKED_PTR_H__
+#endif // __MEM_LINKED_PTR_H__
