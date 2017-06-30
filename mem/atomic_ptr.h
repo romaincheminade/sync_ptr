@@ -27,38 +27,20 @@ namespace mem
         using atomic_ptr_t  = atomic_ptr<TPtr, TDeleter>;
 
     private:
-        TPtr *                  raw_ptr_;
         std::atomic<TPtr *>     atomic_ptr_;
 
 
     public:
         atomic_ptr(void) noexcept
-            : raw_ptr_{ nullptr }
-            , atomic_ptr_{ nullptr }
+            : atomic_ptr_{ nullptr }
         {}
 
         template<class TPtrCompatible>
         atomic_ptr(TPtrCompatible * p_ptr) noexcept
-            : raw_ptr_{ p_ptr }
-            , atomic_ptr_{ p_ptr }
+            : atomic_ptr_{ p_ptr }
         {
             assert(p_ptr);
         }
-
-        atomic_ptr(atomic_ptr_t && p_rhs) noexcept
-            : raw_ptr_{ p_rhs.raw_ptr_ }
-            , atomic_ptr_{ raw_ptr_ }
-        {}
-
-        atomic_ptr_t & operator=(atomic_ptr_t && p_rhs) noexcept
-        {
-            raw_ptr_ = p_rhs.raw_ptr_;
-            atomic_ptr_.store(raw_ptr_, std::memory_order_release);
-            return *this;
-        }
-
-        atomic_ptr(atomic_ptr_t const & p_rhs) noexcept = delete;
-        atomic_ptr_t & operator=(atomic_ptr_t const & p_rhs) & noexcept = delete;
 
         ~atomic_ptr(void) noexcept
         {
@@ -66,12 +48,26 @@ namespace mem
         }
 
 
+    public:
+        atomic_ptr(atomic_ptr_t && p_rhs) noexcept
+            : atomic_ptr_{ p_rhs.get() }
+        {}
+
+        atomic_ptr_t & operator=(atomic_ptr_t && p_rhs) noexcept
+        {
+            atomic_ptr_.store(p_rhs.get(), std::memory_order_release);
+            return *this;
+        }
+
+        atomic_ptr(atomic_ptr_t const & p_rhs) noexcept = delete;
+        atomic_ptr_t & operator=(atomic_ptr_t const & p_rhs) & noexcept = delete;
+
+
     private:
         TPtr * set(TPtr * p_ptr) noexcept
         {
-            auto p = atomic_get();
-            raw_ptr_ = p_ptr;
-            atomic_ptr_.store(raw_ptr_, std::memory_order_release);
+            auto p = get();
+            atomic_ptr_.store(p_ptr, std::memory_order_release);
             return p;
         }
 
@@ -92,9 +88,8 @@ namespace mem
     public:
         void swap(atomic_ptr_t & p_rhs) noexcept
         {
-            std::swap(raw_ptr_, p_rhs.raw_ptr_);
-            atomic_ptr_.store(raw_ptr_, std::memory_order_release);
-            p_rhs.atomic_ptr_.store(p_rhs.raw_ptr_, std::memory_order_release);
+            atomic_ptr_.store(p_rhs.get(), std::memory_order_release);
+            p_rhs.atomic_ptr_.store(get(), std::memory_order_release);
         }
 
 
@@ -127,31 +122,26 @@ namespace mem
 
 
     public:
-        TPtr * non_atomic_get(void) const noexcept
-        {
-            return raw_ptr_;
-        }
-
-        TPtr * atomic_get(void) const noexcept
+        TPtr * get(void) const noexcept
         {
             return atomic_ptr_.load(std::memory_order_acquire);
         }
 
         TPtr * operator->(void) const noexcept
         {
-            return atomic_get();
+            return get();
         }
 
         TPtr & operator*(void) const noexcept
         {
-            return *atomic_get();
+            return *get();
         }
 
 
     public:
         bool valid(void) const noexcept
         {
-            return (atomic_get() != nullptr);
+            return (get() != nullptr);
         }
 
         operator bool(void) const noexcept
@@ -160,6 +150,13 @@ namespace mem
         }
 
     }; // class atomic_ptr
+
+} // namespace mem
+
+//=============================================================================
+
+namespace mem
+{
 
     template <
         class TPtr,
@@ -214,6 +211,7 @@ namespace mem
 
 } // namespace mem
 
+//=============================================================================
 
 namespace std
 {
