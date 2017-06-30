@@ -88,8 +88,9 @@ namespace mem
     public:
         void swap(atomic_ptr_t & p_rhs) noexcept
         {
-            atomic_ptr_.store(p_rhs.get(), std::memory_order_release);
-            p_rhs.atomic_ptr_.store(get(), std::memory_order_release);
+            assert(0);
+            //atomic_ptr_.store(p_rhs.get(), std::memory_order_release);
+            //p_rhs.atomic_ptr_.store(get(), std::memory_order_release);
         }
 
 

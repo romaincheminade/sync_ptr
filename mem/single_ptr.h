@@ -24,7 +24,8 @@ namespace mem
     {
 
     private:
-        TPtr *     ptr_;
+        static std::atomic<TPtr *>      atomic_ptr_;
+        static std::atomic<bool>        destroyed_;
 
 
     public:
@@ -32,32 +33,51 @@ namespace mem
         ~single_ptr(void) noexcept = default;
 
 
-    private:
-        using single_ptr_t = single_ptr<TPtr, TDeleter>;
     public:
-        single_ptr(single_ptr_t && p_rhs) noexcept = delete;
-        single_ptr(single_ptr_t const & p_rhs) noexcept = delete;
-        single_ptr_t & operator=(single_ptr_t && p_rhs) noexcept = delete;
-        single_ptr_t & operator=(single_ptr_t const & p_rhs) & noexcept = delete;
+        single_ptr(single_ptr<TPtr, TDeleter> && p_rhs) noexcept = delete;
+        single_ptr(single_ptr<TPtr, TDeleter> const & p_rhs) noexcept = delete;
+        single_ptr<TPtr, TDeleter> & operator=(single_ptr<TPtr, TDeleter> && p_rhs) noexcept = delete;
+        single_ptr<TPtr, TDeleter> & operator=(single_ptr<TPtr, TDeleter> const & p_rhs) & noexcept = delete;
 
 
     public:
-        TPtr * get(void) const noexcept
+        static TPtr * get(void) const noexcept
         {
-            return ptr_;
+            auto res = atomic_ptr_.load(std::memory_order_acquire);
+            if (!res)
+            {
+                if (destroyed_)
+                {
+                    destroyed_ = false;
+                }
+//                 pInstance_ = CreationPolicy<T>::Create();
+//                 LifetimePolicy<T>::ScheduleDestruction(pInstance_,
+//                     &DestroySingleton);
+
+                atomic_ptr_.store(res, std::memory_order_release);
+                destroyed_ = false;
+            }
+
+            return res;
         }
 
-        TPtr * operator->(void) const noexcept
+        static TPtr * operator->(void) const noexcept
         {
             return get();
         }
 
-        TPtr & operator*(void) const noexcept
+        static TPtr & operator*(void) const noexcept
         {
             return *get();
         }
 
     }; // class single_ptr
+
+    template <class TPtr, template <class T> class TDeleter>
+    std::atomic<TPtr *> single_ptr<TPtr, TDeleter>::atomic_ptr_ = nullptr;
+
+    template <class TPtr, template <class T> class TDeleter>
+    bool single_ptr<TPtr, TDeleter>::destroyed_ = false;
 
 } // namespace mem
 
