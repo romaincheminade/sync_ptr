@@ -8,7 +8,7 @@ include( ${BASE_SOURCE_PATH}/CMake/ProjectFlags.cmake )
 
 # Source Files.
 #################################################
-set( SRC_FILES )
+set( SRC_FILES )	
 include( ${BASE_SOURCE_PATH}/mem/CMakeLists.txt )
 
 
