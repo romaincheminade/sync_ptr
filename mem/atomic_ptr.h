@@ -38,6 +38,14 @@ namespace mem
         return __atomic_exchange_n(p_dest, p_value, __ATOMIC_ACQ_REL);
 
 #elif defined(_WIN32)
+    #if defined(__x86_64__) || defined (_M_X64)
+        return _InterlockedExchange64((volatile long long *)p_dest, (long long)p_value);
+
+    #else
+        return _InterlockedExchange((volatile long *)p_dest, (long)p_value));
+    #endif
+
+#else
         T res = _load_acquire(p_dest);
         _store_release(p_dest, p_value);
         return res;
