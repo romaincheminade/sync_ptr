@@ -34,9 +34,15 @@ namespace mem
     template <typename T>
     inline T _exchange_acquire_release(volatile T * p_dest, T p_value)
     {
+#if defined(__linux__)
+        return __atomic_exchange_n(p_dest, p_value, __ATOMIC_ACQ_REL);
+
+#elif defined(_WIN32)
         T res = _load_acquire(p_dest);
         _store_release(p_dest, p_value);
         return res;
+
+#endif
     }
 
 
