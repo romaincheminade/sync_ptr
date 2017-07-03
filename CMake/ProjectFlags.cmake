@@ -6,8 +6,8 @@ set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib )
 set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib )
 set( CMAKE_INCLUDE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/include )
 
-set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_EXTENSIONS Off)
+set (CMAKE_CXX_STANDARD 14)
+# set (CMAKE_CXX_EXTENSIONS Off)
 
 # Grab target compiler and set corresponding variables.
 ###################################################################################################

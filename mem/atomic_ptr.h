@@ -39,10 +39,10 @@ namespace mem
 
 #elif defined(_WIN32)
     #if defined(__x86_64__) || defined (_M_X64)
-        return _InterlockedExchange64((volatile long long *)p_dest, (long long)p_value);
+        return (T)_InterlockedExchange64((volatile long long *)(p_dest), (long long)(p_value));
 
     #else
-        return _InterlockedExchange((volatile long *)p_dest, (long)p_value));
+        return (T)_InterlockedExchange((volatile long *)p_dest, (long)p_value));
     #endif
 
 #else
