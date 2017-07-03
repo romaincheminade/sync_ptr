@@ -16,6 +16,7 @@
 
 namespace mem
 {
+
     template <typename T>
     inline void _store_release(volatile T * p_dest, T p_value)
     {
@@ -52,7 +53,6 @@ namespace mem
 
 #endif
     }
-
 
     template<class TPtr>
     using atomic_ptr_deleter = default_deleter<TPtr>;

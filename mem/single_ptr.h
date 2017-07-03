@@ -6,7 +6,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
-#include <cstdlib>
+#include <memory>
 #include <mutex>
 #include <utility>
 
@@ -14,28 +14,37 @@
 #include "mem/allocation_policy.h"
 #endif
 
+#ifndef __MEM_ATOMIC_PTR_H__
+#include "mem/atomic_ptr.h"
+#endif
+
 
 namespace mem
 {
 
-    template <
-        class TPtr>
+    template <class T>
     class single_ptr final
     {
 
     private:
-        using single_ptr_t = single_ptr<TPtr>;
+        using single_ptr_t = single_ptr<T>;
 
     private:
-        static TPtr *                   ptr_;
-        static std::atomic<TPtr *>      atomic_ptr_;
-        static bool                     destroyed_;
-        static std::mutex               mutex_;
+        static single_ptr<T> *      instance_;
+        static bool                 destroyed_;
+        T *                         ptr_;
 
 
     private:
-        single_ptr(void) noexcept = default;
-        ~single_ptr(void) noexcept = default;
+        single_ptr(void) noexcept
+            : ptr_{ new T }
+        {}
+
+        ~single_ptr(void) noexcept
+        {
+            instance_ = nullptr;
+            destroyed_ = true;
+        }
 
 
     public:
@@ -48,41 +57,37 @@ namespace mem
     private:
         static void create(void)
         {
-            static TPtr instance;
-            ptr_ = &instance;
+            static single_ptr<T> instance;
+            instance_ = &instance;
         }
 
         static void recreate(void)
         {
             create();
-            new(ptr_) TPtr;
+            new(instance_) single_ptr<T>;
         }
 
         static void store(void)
         {
             std::atexit(reclame);
-            atomic_ptr_.store(ptr_, std::memory_order_release);
             destroyed_ = false;
         }
 
         static void reclame(void)
         {
-            atomic_ptr_.store(nullptr, std::memory_order_release);
-
-            std::lock_guard<std::mutex> l(mutex_);
-            ptr_->~TPtr();
-            ptr_ = nullptr;
+            instance_->~single_ptr();
+            instance_ = nullptr;
             destroyed_ = true;
         }
 
 
     public:
-        static TPtr * instance(void)
+        static T * instance(void)
         {
-            if(!atomic_ptr_.load(std::memory_order_acquire))
-            {
-                std::unique_lock<std::mutex> l(mutex_);
-                if (!ptr_)
+            //if(!atomic_ptr_.load(std::memory_order_acquire))
+            //{
+            //    std::unique_lock<std::mutex> l(mutex_);
+                if (!instance_)
                 {
                     if (destroyed_)
                     {
@@ -94,9 +99,9 @@ namespace mem
                     }
                     store();
                 }
-                l.unlock();
-            }
-            return ptr_;
+            //    l.unlock();
+            //}
+            return instance_->ptr_;
         }
 
     }; // class single_ptr
@@ -105,16 +110,10 @@ namespace mem
 
 //=============================================================================
 
-template <class TPtr>
-TPtr * mem::single_ptr<TPtr>::ptr_ = nullptr;
+template <class T>
+mem::single_ptr<T> * mem::single_ptr<T>::instance_ = nullptr;
 
-template <class TPtr>
-std::atomic<TPtr *> mem::single_ptr<TPtr>::atomic_ptr_;
-
-template <class TPtr>
-bool mem::single_ptr<TPtr>::destroyed_ = false;
-
-template <class TPtr>
-std::mutex mem::single_ptr<TPtr>::mutex_;
+template <class T>
+bool mem::single_ptr<T>::destroyed_ = false;
 
 #endif // __MEM_SINGLE_PTR_H__
