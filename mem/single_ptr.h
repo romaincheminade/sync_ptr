@@ -30,9 +30,10 @@ namespace mem
         using single_ptr_t = single_ptr<T>;
 
     private:
-        static single_ptr<T> *      instance_;
-        static bool                 destroyed_;
-        T *                         ptr_;
+        static mem::atomic_ptr<single_ptr<T>>   instance_;
+        static std::mutex                       mutex_;
+        static bool                             destroyed_;
+        T *                                     ptr_;
 
 
     private:
@@ -40,11 +41,8 @@ namespace mem
             : ptr_{ new T }
         {}
 
-        ~single_ptr(void) noexcept
-        {
-            instance_ = nullptr;
-            destroyed_ = true;
-        }
+    public:
+        ~single_ptr(void) noexcept = default;
 
 
     public:
@@ -58,13 +56,12 @@ namespace mem
         static void create(void)
         {
             static single_ptr<T> instance;
-            instance_ = &instance;
+            instance_.reset(&instance);
         }
 
         static void recreate(void)
         {
-            create();
-            new(instance_) single_ptr<T>;
+            instance_.reset(new single_ptr<T>());
         }
 
         static void store(void)
@@ -75,8 +72,7 @@ namespace mem
 
         static void reclame(void)
         {
-            instance_->~single_ptr();
-            instance_ = nullptr;
+            instance_.reset();
             destroyed_ = true;
         }
 
@@ -84,9 +80,9 @@ namespace mem
     public:
         static T * instance(void)
         {
-            //if(!atomic_ptr_.load(std::memory_order_acquire))
-            //{
-            //    std::unique_lock<std::mutex> l(mutex_);
+            if(!instance_)
+            {
+                std::unique_lock<std::mutex> l(mutex_);
                 if (!instance_)
                 {
                     if (destroyed_)
@@ -99,8 +95,8 @@ namespace mem
                     }
                     store();
                 }
-            //    l.unlock();
-            //}
+                l.unlock();
+            }
             return instance_->ptr_;
         }
 
@@ -111,7 +107,10 @@ namespace mem
 //=============================================================================
 
 template <class T>
-mem::single_ptr<T> * mem::single_ptr<T>::instance_ = nullptr;
+mem::atomic_ptr<mem::single_ptr<T>> mem::single_ptr<T>::instance_;
+
+template <class T>
+std::mutex mem::single_ptr<T>::mutex_;
 
 template <class T>
 bool mem::single_ptr<T>::destroyed_ = false;

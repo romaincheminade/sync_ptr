@@ -30,11 +30,7 @@ set(
 
 # Examples.	
 #################################################
-add_new_test(
-    Linked 
-    ${BASE_SOURCE_PATH}/test/linked_ptr )
-	
-add_new_test(
-    Sync 
-    ${BASE_SOURCE_PATH}/test/sync_ptr )
+add_new_test(Atomic 	${BASE_SOURCE_PATH}/test/atomic_ptr )
+add_new_test(Linked 	${BASE_SOURCE_PATH}/test/linked_ptr )
+add_new_test(Sync	${BASE_SOURCE_PATH}/test/sync_ptr )
 	
