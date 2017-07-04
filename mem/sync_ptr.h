@@ -18,9 +18,6 @@ namespace mem
 {
 
     template<class TPtr>
-    using sync_ptr_allocator    = default_allocator<TPtr>;
-
-    template<class TPtr>
     using sync_ptr_deleter      = default_deleter<TPtr>;
 
     template <class TPtr, template <class T> class TDeleter>
@@ -296,14 +293,16 @@ namespace mem
         class TPtr,
         template <class T> class TDeleter = sync_ptr_deleter,
         class... TArgs>
-    inline typename std::enable_if<
-        !std::is_array<TPtr>::value,
-        mem::sync_ptr<TPtr, TDeleter>>::type
-        make_sync(
-            TArgs&&... p_args)
+    inline 
+    typename std::enable_if<!std::is_array<TPtr>::value, mem::sync_ptr<TPtr, TDeleter>>::type
+    make_sync(
+        TArgs&&... p_args)
     {
-        return (sync_ptr<TPtr, TDeleter>(
-                new TPtr(std::forward<TArgs>(p_args)...)));
+        TPtr * ptr = new TPtr(std::forward<TArgs>(p_args)...);
+
+        sync_ptr<TPtr, TDeleter> res;
+        res.reset(ptr);
+        return res;
     }
 
     template<
@@ -311,24 +310,35 @@ namespace mem
         template <class T> class TDeleter,
         class... TArgs>
     typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
-        make_sync(
-            TArgs&&...)
-            = delete;
-        
+    make_sync(
+        TArgs&&...)
+        = delete;
+    
+
     template <
         class TPtr,
         template <class T> class TAllocator,
         template <class T> class TDeleter = sync_ptr_deleter,
         class... TArgs>
-    inline typename std::enable_if<
-        !std::is_array<TPtr>::value,
-        mem::sync_ptr<TPtr, TDeleter>>::type
-        allocate_sync(
-            TAllocator<TPtr> const & p_allocator,
-            TArgs&&... p_args)
+    inline 
+    typename std::enable_if<!std::is_array<TPtr>::value, mem::sync_ptr<TPtr, TDeleter>>::type
+    allocate_sync(
+        TAllocator<TPtr> & p_allocator,
+        TArgs&&... p_args)
     {
-        return (sync_ptr<TPtr, TDeleter>(
-                p_allocator.allocate(std::forward<TArgs>(p_args)...)));
+        TPtr * ptr = p_allocator.allocate(1);
+
+        try {
+            p_allocator.construct(ptr, std::forward<TArgs>(p_args)...);
+        }
+        catch (...) {
+            p_allocator.deallocate(ptr, 1);
+            throw;
+        }
+
+        sync_ptr<TPtr, TDeleter> res;
+        res.reset(ptr);
+        return res;
     }
 
     template<
@@ -337,10 +347,10 @@ namespace mem
         template <class T> class TDeleter,
         class... TArgs>
     typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
-        allocate_sync(
-            TAllocator<TPtr> const & p_allocator,
-            TArgs&&...)
-            = delete;
+    allocate_sync(
+        TAllocator<TPtr> const & p_allocator,
+        TArgs&&...)
+        = delete;
 
 } // namespace mem
 

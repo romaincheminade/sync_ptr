@@ -76,25 +76,36 @@ void tests::mem_sync_ptr_exchange(void)
 
 
 
-static bool test_allocator_called = false;
-
-template<class TType>
+template<class T>
 struct test_allocator
 {
     constexpr test_allocator(
         void)
         noexcept = default;
 
-    template<class ...TArg>
-    TType * allocate(
-        TArg && ...p_args)
-        const
+    T * allocate(std::size_t p_num)
     {
-        static_assert(0 < sizeof(TType),
-            "can't allocate an incomplete type");
+        static_assert(0 < sizeof(T), "can't allocate an incomplete type");
+        return static_cast<T*>(::operator new(sizeof(T) * p_num));
+    }
 
-        test_allocator_called = true;
-        return new TType(std::forward<TArg>(p_args)...);
+    void deallocate(T * p_ptr, std::size_t p_num)
+    {
+        ::operator delete(p_ptr, sizeof(T) * p_num);
+    }
+
+    template<
+        class TPtr,
+        class... TArgs>
+    void construct(TPtr * p_ptr, TArgs&&... p_args) const
+    {
+        ::new ((void *)p_ptr) TPtr(_STD forward<TArgs>(p_args)...);
+    }
+    
+    template<class TPtr>
+    void destroy(TPtr * p_ptr) const
+    {	
+        p_ptr->~_Uty();
     }
 };
 
@@ -103,16 +114,13 @@ void tests::mem_sync_ptr_allocator(void)
     class Obj
     {};
 
-    // User defined template.
+    test_allocator<Obj> allocator_;
 
-    test_allocator_called = false;
-    {
-        test_allocator<Obj> allocator_;
+    auto obj(
+        mem::allocate_sync<
+        Obj>(
+            allocator_));
 
-        auto obj(
-            mem::allocate_sync<
-                Obj> (
-                    allocator_));
-    }
-    test_assert(test_allocator_called);
+    test_assert(obj);
+    test_assert(obj.get());
 }

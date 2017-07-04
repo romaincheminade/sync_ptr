@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -13,6 +14,8 @@
 #include "mem/allocation_policy.h"
 #endif
 
+
+std::shared_ptr<int> s;
 
 namespace mem
 {
@@ -75,37 +78,60 @@ namespace mem
         atomic_ptr(void) noexcept
             : ptr_{ nullptr }
         {}
+        
+        atomic_ptr(atomic_ptr_t const & p_rhs) noexcept = delete;
+        atomic_ptr(atomic_ptr_t && p_rhs) noexcept
+            : ptr_{ nullptr }
+        {
+            _store_release(&ptr_, p_rhs.release());
+        }
 
-        template<class TPtrCompatible>
-        atomic_ptr(TPtrCompatible * p_ptr) noexcept
+        atomic_ptr_t & operator=(atomic_ptr_t const & p_rhs) & noexcept = delete;
+        atomic_ptr_t & operator=(atomic_ptr_t && p_rhs) noexcept
+        {
+            _store_release(&ptr_, p_rhs.release());
+            return *this;
+        }
+        
+        template<
+            class Tp,
+            class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
+        atomic_ptr(Tp * p_ptr) noexcept
             : ptr_{ nullptr }
         {
             assert(p_ptr);
             _store_release(&ptr_, p_ptr);
         }
 
+
+        template<
+            class Tp,
+            class Td,
+            class = typename std::enable_if<std::is_convertible<typename unique_ptr<Tp, Td>::pointer, _Ty *>::value, void>::type >
+        atomic_ptr(std::unique_ptr<Tp, Td> && p_ptr) noexcept
+            : ptr_{ nullptr }
+        {
+            assert(p_ptr);
+            _store_release(&ptr_, p_ptr.release());
+        }
+
+        template<
+            class Tp,
+            class Td,
+            class = typename std::enable_if<std::is_convertible<typename unique_ptr<Tp, Td>::pointer, _Ty *>::value, void>::type >
+        atomic_ptr_t & operator=(std::unique_ptr<Tp, Td> && p_ptr) noexcept
+        {
+            _store_release(&ptr_, p_rhs.release());
+            return *this;
+        }
+        
+
+
         ~atomic_ptr(void) noexcept
         {
             reset();
         }
-
-
-    public:
-        atomic_ptr(atomic_ptr_t && p_rhs) noexcept
-            : ptr_{ nullptr }
-        {
-            _store_release(&ptr_, p_rhs.get());
-        }
-
-        atomic_ptr_t & operator=(atomic_ptr_t && p_rhs) noexcept
-        {
-            _store_release(&ptr_, p_rhs.get());
-            return *this;
-        }
-
-        atomic_ptr(atomic_ptr_t const & p_rhs) noexcept = delete;
-        atomic_ptr_t & operator=(atomic_ptr_t const & p_rhs) & noexcept = delete;
-
+        
 
     private:
         TPtr * set(TPtr * p_ptr) noexcept
@@ -128,8 +154,10 @@ namespace mem
 
 
     public:
-        template<class TPtrCompatible>
-        void reset(TPtrCompatible * p_ptr) noexcept
+        template<
+            class Tp,
+            class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
+        void reset(Tp * p_ptr) noexcept
         {
             assert(p_ptr);
             assert(p_ptr != get());
@@ -146,8 +174,10 @@ namespace mem
             return set(nullptr);
         }
 
-        template<class TPtrCompatible>
-        TPtr * exchange(TPtrCompatible * p_ptr) noexcept
+        template<
+            class Tp,
+            class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
+        TPtr * exchange(Tp * p_ptr) noexcept
         {
             assert(p_ptr);
             assert(p_ptr != get());
@@ -207,8 +237,11 @@ namespace mem
         make_atomic(
             TArgs&&... p_args)
     {
-        return (atomic_ptr<TPtr, TDeleter>(
-                new TPtr(std::forward<TArgs>(p_args)...)));
+        TPtr * ptr = new TPtr(std::forward<TArgs>(p_args)...);
+
+        atomic_ptr<TPtr, TDeleter> res;
+        res.reset(ptr);
+        return res;
     }
 
     template<
@@ -226,15 +259,25 @@ namespace mem
         template <class T> class TAllocator,
         template <class T> class TDeleter = mem::atomic_ptr_deleter,
         class... TArgs>
-    inline typename std::enable_if<
-        !std::is_array<TPtr>::value,
-        mem::atomic_ptr<TPtr, TDeleter>>::type
-        allocate_atomic(
-            TAllocator<TPtr> const & p_allocator,
-            TArgs&&... p_args)
+    inline 
+    typename std::enable_if<!std::is_array<TPtr>::value, mem::atomic_ptr<TPtr, TDeleter>>::type
+    allocate_atomic(
+        TAllocator<TPtr> & p_allocator,
+        TArgs&&... p_args)
     {
-        return (atomic_ptr<TPtr, TDeleter>(
-                p_allocator.allocate(std::forward<TArgs>(p_args)...)));
+        TPtr * ptr = p_allocator.allocate(1);
+
+        try {
+            p_allocator.construct(ptr, std::forward<TArgs>(p_args)...);
+        }
+        catch (...) {
+            p_allocator.deallocate(ptr, 1);
+            throw;
+        }
+
+        atomic_ptr<TPtr, TDeleter> res;
+        res.reset(ptr);
+        return res;
     }
 
     template<
