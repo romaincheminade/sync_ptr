@@ -6,8 +6,6 @@ set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib )
 set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib )
 set( CMAKE_INCLUDE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/include )
 
-set (CMAKE_CXX_STANDARD 14)
-# set (CMAKE_CXX_EXTENSIONS Off)
 
 # Grab target compiler and set corresponding variables.
 ###################################################################################################
@@ -22,6 +20,9 @@ include( ${CMAKE_CURRENT_SOURCE_DIR}/CMake/CheckCompiler.cmake )
 
 
 if( USING_WINDOWS_MSVC )
+	set (CMAKE_CXX_STANDARD 14)
+	# set (CMAKE_CXX_EXTENSIONS Off)
+
 	set(CMAKE_C_FLAGS   	"${CMAKE_C_FLAGS}   	/W4 /wd4251")
 	set(CMAKE_CXX_FLAGS 	"${CMAKE_CXX_FLAGS} 	/W4 /wd4251")
 	
@@ -67,7 +68,7 @@ elseif( USING_GCC OR USING_LLVM_CLANG )
 	message( "\nEclipse Debug: Please set CMAKE_BUILD_TYPE to Debug manually.\n" )
 
 	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror" )
-	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z" )
+	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
 
 	if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux" AND USING_LLVM_CLANG)	
 

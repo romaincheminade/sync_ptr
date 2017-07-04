@@ -99,7 +99,6 @@ namespace mem
         atomic_ptr(Tp * p_ptr) noexcept
             : ptr_{ nullptr }
         {
-            assert(p_ptr);
             _store_release(&ptr_, p_ptr);
         }
 
@@ -107,19 +106,18 @@ namespace mem
         template<
             class Tp,
             class Td,
-            class = typename std::enable_if<std::is_convertible<typename unique_ptr<Tp, Td>::pointer, _Ty *>::value, void>::type >
-        atomic_ptr(std::unique_ptr<Tp, Td> && p_ptr) noexcept
+            class = typename std::enable_if<std::is_convertible<typename std::unique_ptr<Tp, Td>::pointer, TPtr *>::value, void>::type >
+        atomic_ptr(std::unique_ptr<Tp, Td> && p_rhs) noexcept
             : ptr_{ nullptr }
         {
-            assert(p_ptr);
-            _store_release(&ptr_, p_ptr.release());
+            _store_release(&ptr_, p_rhs.release());
         }
 
         template<
             class Tp,
             class Td,
-            class = typename std::enable_if<std::is_convertible<typename unique_ptr<Tp, Td>::pointer, _Ty *>::value, void>::type >
-        atomic_ptr_t & operator=(std::unique_ptr<Tp, Td> && p_ptr) noexcept
+            class = typename std::enable_if<std::is_convertible<typename std::unique_ptr<Tp, Td>::pointer, TPtr *>::value, void>::type >
+        atomic_ptr_t & operator=(std::unique_ptr<Tp, Td> && p_rhs) noexcept
         {
             _store_release(&ptr_, p_rhs.release());
             return *this;
@@ -231,11 +229,10 @@ namespace mem
         class TPtr,
         template <class T> class TDeleter = mem::atomic_ptr_deleter,
         class... TArgs>
-    inline typename std::enable_if<
-        !std::is_array<TPtr>::value,
-        mem::atomic_ptr<TPtr, TDeleter>>::type
-        make_atomic(
-            TArgs&&... p_args)
+    inline
+    typename std::enable_if<!std::is_array<TPtr>::value, mem::atomic_ptr<TPtr, TDeleter>>::type
+    make_atomic(
+        TArgs&&... p_args)
     {
         TPtr * ptr = new TPtr(std::forward<TArgs>(p_args)...);
 
@@ -249,9 +246,9 @@ namespace mem
         template <class T> class TDeleter,
         class... TArgs>
     typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
-        make_atomic(
-            TArgs&&...)
-            = delete;
+    make_atomic(
+        TArgs&&...)
+        = delete;
 
 
     template <
@@ -286,10 +283,10 @@ namespace mem
         template <class T> class TDeleter,
         class... TArgs>
     typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
-        allocate_atomic(
-            TAllocator<TPtr> const & p_allocator,
-            TArgs&&...)
-            = delete;
+    allocate_atomic(
+        TAllocator<TPtr> const & p_allocator,
+        TArgs&&...)
+        = delete;
 
 } // namespace mem
 

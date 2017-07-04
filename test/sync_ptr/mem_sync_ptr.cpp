@@ -3,6 +3,7 @@
 #include "mem_sync_ptr.h"
 
 #include <memory>
+#include <new>
 
 #include <mem/sync_ptr.h>
 #include <test_assert.h>
@@ -99,7 +100,7 @@ struct test_allocator
         class... TArgs>
     void construct(TPtr * p_ptr, TArgs&&... p_args) const
     {
-        ::new ((void *)p_ptr) TPtr(_STD forward<TArgs>(p_args)...);
+        ::new ((void *)p_ptr) TPtr(std::forward<TArgs>(p_args)...);
     }
     
     template<class TPtr>
