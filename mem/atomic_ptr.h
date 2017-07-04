@@ -142,13 +142,13 @@ namespace mem
         void release_ptr(TPtr * p_ptr) noexcept
         {
             static_assert(
-                noexcept(this->deallocate(p_ptr)),
+                noexcept(this->operator()(p_ptr)),
                 "Deleter policy must offer no-throw guarantee.");
 
             auto p = set(p_ptr);
             if (p)
             {
-                this->deallocate(p);
+                this->operator()(p);
             }
         }
 

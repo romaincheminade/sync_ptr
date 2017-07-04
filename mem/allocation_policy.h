@@ -28,13 +28,9 @@ namespace mem
             noexcept
         {}
 
-        void deallocate(
-            TType * p_ptr) 
-            const noexcept
+        void operator()(TType * p_ptr) const noexcept
         {	
-            static_assert(
-                0 < sizeof(TType),
-                "can't delete an incomplete type");
+            static_assert(0 < sizeof(TType), "can't delete an incomplete type");
             delete p_ptr;
         }
 
