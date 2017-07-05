@@ -160,7 +160,6 @@ namespace mem
         }
         
 
-
         ~atomic_ptr(void) noexcept
         {
             reset();
@@ -269,12 +268,7 @@ namespace mem
 
     }; // class atomic_ptr
 
-} // namespace mem
-
-//=============================================================================
-
-namespace mem
-{
+    //=========================================================================
 
     template <
         class TPtr,
@@ -341,22 +335,5 @@ namespace mem
 
 } // namespace mem
 
-//=============================================================================
-
-//namespace std
-//{
-//
-//    template <
-//        class TPtr,
-//        template <class T> class TDeleter>
-//    void swap(
-//        mem::atomic_ptr<TPtr, TDeleter> & p_lhs,
-//        mem::atomic_ptr<TPtr, TDeleter> & p_rhs)
-//        noexcept
-//    {
-//        p_lhs.swap(p_rhs);
-//    }
-//
-//} // namespace std
-
 #endif // __MEM_ATOMIC_PTR_H__
+

@@ -10,10 +10,6 @@
 #include <mutex>
 #include <utility>
 
-#ifndef __MEM_ALLOCATION_POLICY_H__
-#include "mem/allocation_policy.h"
-#endif
-
 #ifndef __MEM_ATOMIC_PTR_H__
 #include "mem/atomic_ptr.h"
 #endif
