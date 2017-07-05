@@ -84,15 +84,18 @@ namespace mem
             : tuple_{}
         {
             _store_release(&std::get<0>(tuple_), p_rhs.release());
+            get_deleter() = std::forward<TDeleter>(p_rhs.get_deleter());
         }
 
         atomic_ptr_t & operator=(atomic_ptr_t const & p_rhs) & noexcept = delete;
         atomic_ptr_t & operator=(atomic_ptr_t && p_rhs) noexcept
         {
             _store_release(&std::get<0>(tuple_), p_rhs.release());
+            get_deleter() = std::forward<TDeleter>(p_rhs.get_deleter());
             return *this;
         }
         
+
         template<
             class Tp,
             class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
@@ -100,6 +103,37 @@ namespace mem
             : tuple_{}
         {
             _store_release(&std::get<0>(tuple_), p_ptr);
+        }
+
+        template<
+            class Tp,
+            class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
+        atomic_ptr(
+            Tp * p_ptr,
+            typename std::conditional<std::is_reference<TDeleter>::value, TDeleter, TDeleter const &>::type p_deleter)
+            noexcept
+            : tuple_{nullptr, p_deleter}
+        {
+            _store_release(&std::get<0>(tuple_), p_ptr);
+        }
+
+        template<
+            class Tp,
+            class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
+        atomic_ptr(
+            Tp * p_ptr,
+            typename std::remove_reference<TDeleter>::type && p_deleter)
+            noexcept
+            : tuple_{nullptr, std::move(p_deleter)}
+        {
+            _store_release(&std::get<0>(tuple_), p_ptr);
+        }
+
+
+        atomic_ptr_t & operator=(std::nullptr_t) noexcept
+        {
+            reset();
+            return *this;
         }
 
 
@@ -111,6 +145,7 @@ namespace mem
             : tuple_{}
         {
             _store_release(&std::get<0>(tuple_), p_rhs.release());
+            get_deleter() = std::forward<TDeleter>(p_rhs.get_deleter());
         }
 
         template<
@@ -120,6 +155,7 @@ namespace mem
         atomic_ptr_t & operator=(std::unique_ptr<Tp, Td> && p_rhs) noexcept
         {
             _store_release(&std::get<0>(tuple_), p_rhs.release());
+            get_deleter() = std::forward<TDeleter>(p_rhs.get_deleter());
             return *this;
         }
         
@@ -137,7 +173,7 @@ namespace mem
             return _exchange_acquire_release(&std::get<0>(tuple_), p_ptr);
         }
 
-        void release_ptr(TPtr * p_ptr) noexcept
+        void reset_ptr(TPtr * p_ptr) noexcept
         {
             auto p = set(p_ptr);
             if (p)
@@ -155,12 +191,17 @@ namespace mem
         {
             assert(p_ptr);
             assert(p_ptr != get());
-            release_ptr(p_ptr);
+            reset_ptr(p_ptr);
         }
 
         void reset(void) noexcept
         {
-            release_ptr(nullptr);
+            reset_ptr(nullptr);
+        }
+
+        void reset(std::nullptr_t) noexcept
+        {
+            reset();
         }
 
         TPtr * release(void) noexcept
