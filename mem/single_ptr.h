@@ -27,62 +27,54 @@ namespace mem
     {
 
     private:
-        using single_ptr_t = single_ptr<T>;
-
-    private:
-        static mem::atomic_ptr<single_ptr<T>>   instance_;
-        static std::mutex                       mutex_;
-        static bool                             destroyed_;
-        T *                                     ptr_;
-
-
-    private:
-        single_ptr(void) noexcept
-            : ptr_{ new T }
-        {}
-
-    public:
-        ~single_ptr(void) noexcept = default;
-
-
-    public:
-        single_ptr(single_ptr_t && p_rhs) noexcept = delete;
-        single_ptr(single_ptr_t const & p_rhs) noexcept = delete;
-        single_ptr_t & operator=(single_ptr_t && p_rhs) noexcept = delete;
-        single_ptr_t & operator=(single_ptr_t const & p_rhs) & noexcept = delete;
-
-
-    private:
-        static void create(void)
+        class body final
         {
-            static single_ptr<T> instance;
-            instance_.reset(&instance);
-        }
 
-        static void recreate(void)
-        {
-            instance_.reset(new single_ptr<T>());
-        }
+        private:
+            static body *           instance_;
+            static bool             destroyed_;
+            std::unique_ptr<T>      ptr_;
 
-        static void store(void)
-        {
-            std::atexit(reclame);
-            destroyed_ = false;
-        }
+        private:
+            body(void) noexcept
+                : ptr_{ std::make_unique<T>() }
+            {}
 
-        static void reclame(void)
-        {
-            instance_.reset();
-            destroyed_ = true;
-        }
-
-
-    public:
-        static T * instance(void)
-        {
-            if(!instance_)
+        public:
+            ~body(void) noexcept
             {
-                std::unique_lock<std::mutex> l(mutex_);
+                instance_ = nullptr;
+                destroyed_ = true;
+            }
+
+            body(body && p_rhs) noexcept = delete;
+            body(body const & p_rhs) noexcept = delete;
+            body & operator=(body && p_rhs) noexcept = delete;
+            body & operator=(body const & p_rhs) & noexcept = delete;
+
+        private:
+            static void create(void)
+            {
+                body instance;
+                instance_ = &instance;
+            }
+
+            static void recreate(void)
+            {
+                create();
+                new (instance_) T;
+                std::atexit(reclame);
+            }
+
+            static void reclame(void)
+            {
+                instance_->~body();
+                destroyed_ = true;
+            }
+
+        public:
+            static T * instance(void)
+            {
                 if (!instance_)
                 {
                     if (destroyed_)
@@ -93,12 +85,50 @@ namespace mem
                     {
                         create();
                     }
-                    store();
                 }
-                l.unlock();
+                return instance_->ptr_.get();
             }
-            return instance_->ptr_;
+
+        }; // class body
+
+
+    public:
+        single_ptr(void) noexcept = default;
+        ~single_ptr(void) noexcept = default;
+
+        single_ptr(single_ptr && p_rhs) noexcept = delete;
+        single_ptr(single_ptr const & p_rhs) noexcept = delete;
+        single_ptr & operator=(single_ptr && p_rhs) noexcept = delete;
+        single_ptr & operator=(single_ptr const & p_rhs) & noexcept = delete;
+
+
+    public:
+        T * get(void) const noexcept
+        {
+            return body::instance();
         }
+
+        T * operator->(void) const noexcept
+        {
+            return get();
+        }
+
+        T & operator*(void) const noexcept
+        {
+            return *get();
+        }
+
+    public:
+        constexpr bool valid(void)
+        {
+            return true;
+        }
+
+        constexpr operator bool(void)
+        {
+            return true;
+        }
+
 
     }; // class single_ptr
 
@@ -107,12 +137,9 @@ namespace mem
 //=============================================================================
 
 template <class T>
-mem::atomic_ptr<mem::single_ptr<T>> mem::single_ptr<T>::instance_;
+typename mem::single_ptr<T>::body * mem::single_ptr<T>::body::instance_ = nullptr;
 
 template <class T>
-std::mutex mem::single_ptr<T>::mutex_;
-
-template <class T>
-bool mem::single_ptr<T>::destroyed_ = false;
+bool mem::single_ptr<T>::body::destroyed_ = false;
 
 #endif // __MEM_SINGLE_PTR_H__

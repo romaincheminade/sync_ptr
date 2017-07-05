@@ -20,9 +20,9 @@ int main(
 
     class Obj {};
 
-//     auto o = mem::single_ptr<Obj>::instance();
-//     auto s = sizeof(o);
-//     std::cout << s << std::endl;
+    mem::single_ptr<Obj> o;
+    std::cout << sizeof(o) << std::endl;
+    std::cout << sizeof(o.get()) << std::endl;
 
     return 0;
 }
