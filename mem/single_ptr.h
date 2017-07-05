@@ -119,12 +119,12 @@ namespace mem
         }
 
     public:
-        constexpr bool valid(void)
+        constexpr bool valid(void) noexcept
         {
             return true;
         }
 
-        constexpr operator bool(void)
+        constexpr operator bool(void) noexcept
         {
             return true;
         }

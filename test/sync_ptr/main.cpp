@@ -1,6 +1,7 @@
 
 #include "mem_sync_ptr.h"
 
+#include <mem/atomic_ptr.h>
 #include <mem/single_ptr.h>
 
 #include <cstdio>
@@ -18,7 +19,21 @@ int main(
     tests::mem_sync_ptr_allocator();
 
 
-    class Obj {};
+    class Obj {
+    public:
+        std::size_t a_;
+        std::size_t b_;
+        std::size_t c_;
+        std::size_t d_;
+    };
+
+    std::unique_ptr<Obj> u = std::make_unique<Obj>();
+    std::cout << sizeof(u) << std::endl;
+    std::cout << sizeof(u.get()) << std::endl;
+
+    mem::atomic_ptr<Obj> a = mem::make_atomic<Obj>();
+    std::cout << sizeof(a) << std::endl;
+    std::cout << sizeof(a.get()) << std::endl;
 
     mem::single_ptr<Obj> o;
     std::cout << sizeof(o) << std::endl;

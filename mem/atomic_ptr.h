@@ -5,20 +5,16 @@
 
 #include <atomic>
 #include <cassert>
-#include <cstdint>
 #include <memory>
 #include <type_traits>
+#include <tuple>
 #include <utility>
 
-#ifndef __MEM_ALLOCATION_POLICY_H__
-#include "mem/allocation_policy.h"
-#endif
-
-
-std::shared_ptr<int> s;
 
 namespace mem
 {
+
+    //==========================================================================
 
     template <typename T>
     inline void _store_release(volatile T * p_dest, T p_value)
@@ -57,39 +53,43 @@ namespace mem
 #endif
     }
 
-    template<class TPtr>
-    using atomic_ptr_deleter = default_deleter<TPtr>;
+    //==========================================================================
 
     template <
         class TPtr,
-        template <class T> class TDeleter = atomic_ptr_deleter>
+        class TDeleter = std::default_delete<TPtr>>
     class atomic_ptr final
-        : private TDeleter<TPtr>
     {
 
     private:
         using atomic_ptr_t  = atomic_ptr<TPtr, TDeleter>;
 
     private:
-        TPtr *      ptr_;
+        std::tuple<TPtr *, TDeleter>  tuple_;
 
 
     public:
-        atomic_ptr(void) noexcept
-            : ptr_{ nullptr }
+        constexpr atomic_ptr(void) noexcept
+            : tuple_{}
         {}
         
+        /// Creates a unique_ptr that owns nothing.
+        constexpr atomic_ptr(std::nullptr_t) noexcept
+            : atomic_ptr()
+        {}
+
+
         atomic_ptr(atomic_ptr_t const & p_rhs) noexcept = delete;
         atomic_ptr(atomic_ptr_t && p_rhs) noexcept
-            : ptr_{ nullptr }
+            : tuple_{}
         {
-            _store_release(&ptr_, p_rhs.release());
+            _store_release(&std::get<0>(tuple_), p_rhs.release());
         }
 
         atomic_ptr_t & operator=(atomic_ptr_t const & p_rhs) & noexcept = delete;
         atomic_ptr_t & operator=(atomic_ptr_t && p_rhs) noexcept
         {
-            _store_release(&ptr_, p_rhs.release());
+            _store_release(&std::get<0>(tuple_), p_rhs.release());
             return *this;
         }
         
@@ -97,9 +97,9 @@ namespace mem
             class Tp,
             class = typename std::enable_if<std::is_convertible<Tp *, TPtr *>::value, void>::type >
         atomic_ptr(Tp * p_ptr) noexcept
-            : ptr_{ nullptr }
+            : tuple_{}
         {
-            _store_release(&ptr_, p_ptr);
+            _store_release(&std::get<0>(tuple_), p_ptr);
         }
 
 
@@ -108,9 +108,9 @@ namespace mem
             class Td,
             class = typename std::enable_if<std::is_convertible<typename std::unique_ptr<Tp, Td>::pointer, TPtr *>::value, void>::type >
         atomic_ptr(std::unique_ptr<Tp, Td> && p_rhs) noexcept
-            : ptr_{ nullptr }
+            : tuple_{}
         {
-            _store_release(&ptr_, p_rhs.release());
+            _store_release(&std::get<0>(tuple_), p_rhs.release());
         }
 
         template<
@@ -119,7 +119,7 @@ namespace mem
             class = typename std::enable_if<std::is_convertible<typename std::unique_ptr<Tp, Td>::pointer, TPtr *>::value, void>::type >
         atomic_ptr_t & operator=(std::unique_ptr<Tp, Td> && p_rhs) noexcept
         {
-            _store_release(&ptr_, p_rhs.release());
+            _store_release(&std::get<0>(tuple_), p_rhs.release());
             return *this;
         }
         
@@ -134,19 +134,15 @@ namespace mem
     private:
         TPtr * set(TPtr * p_ptr) noexcept
         {
-            return _exchange_acquire_release(&ptr_, p_ptr);
+            return _exchange_acquire_release(&std::get<0>(tuple_), p_ptr);
         }
 
         void release_ptr(TPtr * p_ptr) noexcept
         {
-            static_assert(
-                noexcept(this->operator()(p_ptr)),
-                "Deleter policy must offer no-throw guarantee.");
-
             auto p = set(p_ptr);
             if (p)
             {
-                this->operator()(p);
+                get_deleter()(p);
             }
         }
 
@@ -186,12 +182,12 @@ namespace mem
     public:
         TPtr * non_atomic_get(void) const noexcept
         {
-            return ptr_;
+            return std::get<0>(tuple_);
         }
 
         TPtr * get(void) const noexcept
         {
-            return _load_acquire(&ptr_);
+            return _load_acquire(&std::get<0>(tuple_));
         }
 
         TPtr * operator->(void) const noexcept
@@ -202,6 +198,20 @@ namespace mem
         TPtr & operator*(void) const noexcept
         {
             return *get();
+        }
+
+
+    public:
+        /// Return a reference to the stored deleter.
+        TDeleter & get_deleter(void) noexcept
+        {
+            return std::get<1>(tuple_);
+        }
+
+        /// Return a const reference to the stored deleter.
+        const TDeleter & get_deleter(void) const noexcept
+        {
+            return std::get<1>(tuple_);
         }
 
 
@@ -227,7 +237,7 @@ namespace mem
 
     template <
         class TPtr,
-        template <class T> class TDeleter = mem::atomic_ptr_deleter,
+        class TDeleter = std::default_delete<TPtr>,
         class... TArgs>
     inline
     typename std::enable_if<!std::is_array<TPtr>::value, mem::atomic_ptr<TPtr, TDeleter>>::type
@@ -243,7 +253,7 @@ namespace mem
 
     template<
         class TPtr,
-        template <class T> class TDeleter,
+        class TDeleter,
         class... TArgs>
     typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
     make_atomic(
@@ -253,13 +263,13 @@ namespace mem
 
     template <
         class TPtr,
-        template <class T> class TAllocator,
-        template <class T> class TDeleter = mem::atomic_ptr_deleter,
+        class TAllocator,
+        class TDeleter = std::default_delete<TPtr>,
         class... TArgs>
     inline 
     typename std::enable_if<!std::is_array<TPtr>::value, mem::atomic_ptr<TPtr, TDeleter>>::type
     allocate_atomic(
-        TAllocator<TPtr> & p_allocator,
+        TAllocator & p_allocator,
         TArgs&&... p_args)
     {
         TPtr * ptr = p_allocator.allocate(1);
@@ -279,12 +289,12 @@ namespace mem
 
     template<
         class TPtr,
-        template <class T> class TAllocator,
-        template <class T> class TDeleter,
+        class TAllocator,
+        class TDeleter,
         class... TArgs>
     typename std::enable_if<std::extent<TPtr>::value != 0, void>::type
     allocate_atomic(
-        TAllocator<TPtr> const & p_allocator,
+        TAllocator const & p_allocator,
         TArgs&&...)
         = delete;
 
