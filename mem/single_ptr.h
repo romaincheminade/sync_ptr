@@ -10,10 +10,6 @@
 #include <mutex>
 #include <utility>
 
-#ifndef __MEM_ATOMIC_PTR_H__
-#include "mem/atomic_ptr.h"
-#endif
-
 
 namespace mem
 {
@@ -115,12 +111,12 @@ namespace mem
         }
 
     public:
-        constexpr bool valid(void) noexcept
+        constexpr bool valid(void) const noexcept
         {
             return true;
         }
 
-        constexpr operator bool(void) noexcept
+        constexpr operator bool(void) const noexcept
         {
             return true;
         }

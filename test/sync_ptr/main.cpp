@@ -35,9 +35,9 @@ int main(
     std::cout << sizeof(a) << std::endl;
     std::cout << sizeof(a.get()) << std::endl;
 
-    mem::single_ptr<Obj> o;
-    std::cout << sizeof(o) << std::endl;
-    std::cout << sizeof(o.get()) << std::endl;
+    mem::single_ptr<Obj> s;
+    std::cout << sizeof(s) << std::endl;
+    std::cout << sizeof(s.get()) << std::endl;
 
     return 0;
 }
