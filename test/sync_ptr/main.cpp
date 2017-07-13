@@ -27,6 +27,11 @@ int main(
         std::size_t d_;
     };
 
+    std::atomic<Obj*> std_a;
+    bool is_lock_free = std_a.is_lock_free();
+    std::cout << "is lock free: " << is_lock_free << std::endl;
+    std::cout << sizeof(std_a) << std::endl;
+
     std::unique_ptr<Obj> u = std::make_unique<Obj>();
     std::cout << sizeof(u) << std::endl;
     std::cout << sizeof(u.get()) << std::endl;
