@@ -185,9 +185,9 @@ namespace mem
             return std::get<0>(tuple_).load(std::memory_order_relaxed);
         }
 
-        TPtr * get(void) const noexcept
+        TPtr * get(std::memory_order p_memory_order = std::memory_order_acquire) const noexcept
         {
-            return std::get<0>(tuple_).load(std::memory_order_acquire);
+            return std::get<0>(tuple_).load(p_memory_order);
         }
 
         TPtr * operator->(void) const noexcept

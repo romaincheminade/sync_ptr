@@ -3,6 +3,7 @@
 
 #include <mem/atomic_ptr.h>
 #include <mem/single_ptr.h>
+#include <mem/stack_ptr.h>
 
 #include <cstdio>
 #include <iostream>
@@ -30,19 +31,35 @@ int main(
     std::atomic<Obj*> std_a;
     bool is_lock_free = std_a.is_lock_free();
     std::cout << "is lock free: " << is_lock_free << std::endl;
-    std::cout << sizeof(std_a) << std::endl;
+    std::cout << sizeof(std_a) << '\n' << std::endl;
 
     std::unique_ptr<Obj> u = std::make_unique<Obj>();
     std::cout << sizeof(u) << std::endl;
-    std::cout << sizeof(u.get()) << std::endl;
+    std::cout << sizeof(u.get()) << '\n' << std::endl;
 
     mem::atomic_ptr<Obj> a = mem::make_atomic<Obj>();
     std::cout << sizeof(a) << std::endl;
-    std::cout << sizeof(a.get()) << std::endl;
+    std::cout << sizeof(a.get()) << '\n' << std::endl;
 
     mem::single_ptr<Obj> s;
     std::cout << sizeof(s) << std::endl;
-    std::cout << sizeof(s.get()) << std::endl;
+    std::cout << sizeof(s.get()) << '\n' << std::endl;
+
+
+    class Widget {
+    public:
+        std::int32_t i_;
+
+        explicit Widget(std::int32_t p_i) noexcept
+            : i_{ p_i }
+        {}
+    };
+    mem::stack_ptr<Widget> sp(1);
+    std::cout << sizeof(sp) << std::endl;
+    std::cout << sp.get().i_ << std::endl;
+    std::cout << sp->i_ << std::endl;
+    sp.reset(2);
+    std::cout << sp->i_ << '\n' << std::endl;
 
     return 0;
 }
