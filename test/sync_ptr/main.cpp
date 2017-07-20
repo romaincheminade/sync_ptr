@@ -59,7 +59,8 @@ int main(
     std::cout << sp.get().i_ << std::endl;
     std::cout << sp->i_ << std::endl;
     sp.reset(2);
-    std::cout << sp->i_ << '\n' << std::endl;
+    std::cout << sp->i_ << std::endl;
+    std::cout << std::size_t(&sp) << '\n' << std::endl;
 
     return 0;
 }

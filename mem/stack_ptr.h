@@ -54,6 +54,11 @@ namespace mem
             return &object_;
         }
 
+        T * operator&(void) noexcept
+        {
+            return &object_;
+        }
+
 
     public:
         constexpr bool valid(void) const noexcept
