@@ -48,7 +48,7 @@ namespace mem
         private:
             static void create(void)
             {
-                body instance;
+                static body instance;
                 instance_ = &instance;
             }
 
